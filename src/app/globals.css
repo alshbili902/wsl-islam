@@ -1,0 +1,324 @@
+@import "tailwindcss";
+
+:root,
+[data-theme="light"] {
+  --bg-page: #faf7f0;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #f3eee2;
+  --bg-elevated: #fffdf8;
+  --bg-hero-glow: rgba(13, 92, 67, 0.08);
+  --bg-gold-glow: rgba(182, 135, 44, 0.12);
+  --text-primary: #13231d;
+  --text-secondary: #4a5e55;
+  --text-muted: #6c7d75;
+  --brand-emerald: #0d5c43;
+  --brand-emerald-strong: #08412f;
+  --brand-emerald-soft: rgba(13, 92, 67, 0.09);
+  --brand-gold: #b6872c;
+  --brand-gold-soft: rgba(182, 135, 44, 0.14);
+  --border-subtle: #e4dccb;
+  --border-strong: #cfc3aa;
+  --header-bg: rgba(250, 247, 240, 0.88);
+  --shadow-card: 0 10px 30px -12px rgba(19, 35, 29, 0.08);
+  --shadow-elevated: 0 20px 45px -16px rgba(13, 92, 67, 0.16);
+  --wasl-bg: var(--bg-page);
+  --wasl-surface: var(--bg-surface);
+  --wasl-text: var(--text-primary);
+  --wasl-text-muted: var(--text-secondary);
+  --wasl-border: var(--border-subtle);
+  --wasl-primary: #0d5c43;
+  --wasl-primary-hover: #08412f;
+  --wasl-accent: #b6872c;
+  --wasl-accent-strong: #8d6518;
+}
+
+[data-theme="dark"] {
+  --bg-page: #101413;
+  --bg-surface: #171d1b;
+  --bg-surface-alt: #1e2623;
+  --bg-elevated: #212a27;
+  --bg-hero-glow: rgba(45, 179, 132, 0.1);
+  --bg-gold-glow: rgba(217, 178, 95, 0.08);
+  --text-primary: #f2eee5;
+  --text-secondary: #adbbb4;
+  --text-muted: #83948c;
+  --brand-emerald: #2fb88a;
+  --brand-emerald-strong: #23966f;
+  --brand-emerald-soft: rgba(47, 184, 138, 0.13);
+  --brand-gold: #dcb460;
+  --brand-gold-soft: rgba(220, 180, 96, 0.15);
+  --border-subtle: #26312d;
+  --border-strong: #34443e;
+  --header-bg: rgba(16, 20, 19, 0.88);
+  --shadow-card: 0 12px 32px -12px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 22px 48px -16px rgba(0, 0, 0, 0.6);
+  --wasl-bg: var(--bg-page);
+  --wasl-surface: var(--bg-surface);
+  --wasl-text: var(--text-primary);
+  --wasl-text-muted: var(--text-secondary);
+  --wasl-border: var(--border-subtle);
+  --wasl-primary: #17825d;
+  --wasl-primary-hover: #12694b;
+  --wasl-accent: #dcb460;
+  --wasl-accent-strong: #ebd08d;
+}
+
+[data-theme="night"] {
+  --bg-page: #051611;
+  --bg-surface: #092119;
+  --bg-surface-alt: #0d2b21;
+  --bg-elevated: #113428;
+  --bg-hero-glow: rgba(63, 214, 162, 0.1);
+  --bg-gold-glow: rgba(233, 198, 118, 0.11);
+  --text-primary: #efe8d8;
+  --text-secondary: #a5c3b6;
+  --text-muted: #799c8e;
+  --brand-emerald: #3cd09e;
+  --brand-emerald-strong: #25a77b;
+  --brand-emerald-soft: rgba(60, 208, 158, 0.12);
+  --brand-gold: #e6c16e;
+  --brand-gold-soft: rgba(230, 193, 110, 0.14);
+  --border-subtle: #143a2e;
+  --border-strong: #1e5241;
+  --header-bg: rgba(5, 22, 17, 0.9);
+  --shadow-card: 0 14px 36px -14px rgba(0, 0, 0, 0.55);
+  --shadow-elevated: 0 24px 54px -16px rgba(2, 10, 7, 0.78);
+  --wasl-bg: var(--bg-page);
+  --wasl-surface: var(--bg-surface);
+  --wasl-text: var(--text-primary);
+  --wasl-text-muted: var(--text-secondary);
+  --wasl-border: var(--border-subtle);
+  --wasl-primary: #188862;
+  --wasl-primary-hover: #116a4c;
+  --wasl-accent: #e6c16e;
+  --wasl-accent-strong: #f4dda0;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font-arabic-sans), var(--font-latin-sans), system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+    transition: background-color 280ms ease, color 220ms ease;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  html[dir="ltr"] body {
+    font-family: var(--font-latin-sans), var(--font-arabic-sans), system-ui, -apple-system, sans-serif;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--brand-gold);
+    outline-offset: 2px;
+  }
+}
+
+.font-quran {
+  font-family: var(--font-arabic-serif), "Amiri", Georgia, serif;
+  line-height: 2.15;
+}
+
+.font-arabic,
+.font-arabic-display {
+  font-family: var(--font-arabic-serif), "Amiri", Georgia, serif;
+}
+
+.wasl-surface {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  transition: background-color 260ms ease, border-color 260ms ease, box-shadow 260ms ease, transform 240ms ease;
+}
+
+.wasl-surface-alt {
+  background-color: var(--bg-surface-alt);
+  border: 1px solid var(--border-subtle);
+}
+
+.wasl-arch-card {
+  border-radius: 1.5rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+
+.wasl-ambient-hero {
+  background-image:
+    radial-gradient(ellipse 65% 55% at 50% 0%, var(--bg-gold-glow), transparent 70%),
+    radial-gradient(ellipse 75% 60% at 85% 20%, var(--bg-hero-glow), transparent 70%);
+}
+
+@keyframes wasl-pulse-soft {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.03);
+  }
+}
+
+.animate-ambient-glow {
+  animation: wasl-pulse-soft 8s ease-in-out infinite;
+}
+
+@keyframes wasl-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.wasl-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface-alt) 25%,
+    var(--border-subtle) 50%,
+    var(--bg-surface-alt) 75%
+  );
+  background-size: 200% 100%;
+  animation: wasl-shimmer 1.6s infinite linear;
+}
+
+/* Theme-aware Wasl Islamic brand logo switching (light vs dark/night) */
+.wasl-logo-img {
+  transition: opacity 220ms ease;
+}
+
+.wasl-logo-img--light {
+  opacity: 1;
+}
+
+.wasl-logo-img--dark {
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-theme="dark"] .wasl-logo-img--light,
+html[data-theme="night"] .wasl-logo-img--light {
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-theme="dark"] .wasl-logo-img--dark,
+html[data-theme="night"] .wasl-logo-img--dark {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-ambient-glow,
+  .wasl-skeleton {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Advanced Reading Preferences System ---------- */
+:root {
+  --wasl-reading-font: var(--font-arabic-serif), "Amiri", Georgia, serif;
+  --wasl-reading-scale: 1;
+  --wasl-quran-size: 28px;
+  --wasl-reading-weight: 400;
+  --wasl-reading-line-height: 2.1;
+  --wasl-reading-word-spacing: 0px;
+  --wasl-reading-align: start;
+  --wasl-reading-max-width: 58rem;
+  --wasl-mushaf-zoom: 1;
+  --wasl-paper-bg: var(--bg-surface);
+  --wasl-paper-text: var(--text-primary);
+  --wasl-paper-muted: var(--text-secondary);
+  --wasl-paper-border: var(--border-subtle);
+}
+
+html[data-reading-surface="warm-ivory"] {
+  --wasl-paper-bg: #fcf8ee;
+  --wasl-paper-text: #1b281f;
+  --wasl-paper-muted: #4b5d52;
+  --wasl-paper-border: #dfd3b8;
+}
+
+html[data-reading-surface="classic-white"] {
+  --wasl-paper-bg: #ffffff;
+  --wasl-paper-text: #111815;
+  --wasl-paper-muted: #475550;
+  --wasl-paper-border: #e2e8e4;
+}
+
+html[data-reading-surface="soft-beige"] {
+  --wasl-paper-bg: #f4ebd9;
+  --wasl-paper-text: #2a2216;
+  --wasl-paper-muted: #5f503a;
+  --wasl-paper-border: #dacab0;
+}
+
+html[data-reading-surface="dark-charcoal"] {
+  --wasl-paper-bg: #161b19;
+  --wasl-paper-text: #f3efe4;
+  --wasl-paper-muted: #b0beb7;
+  --wasl-paper-border: #2a3631;
+}
+
+html[data-reading-surface="midnight-emerald"] {
+  --wasl-paper-bg: #071e17;
+  --wasl-paper-text: #f1ead9;
+  --wasl-paper-muted: #a6c4b8;
+  --wasl-paper-border: #174334;
+}
+
+html[data-high-contrast="true"] {
+  --wasl-paper-border: var(--brand-gold);
+}
+
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+}
+
+.wasl-reading-surface {
+  background-color: var(--wasl-paper-bg);
+  color: var(--wasl-paper-text);
+  border-color: var(--wasl-paper-border);
+  transition: background-color 220ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.wasl-reading-container {
+  max-width: var(--wasl-reading-max-width);
+  margin-inline: auto;
+}
+
+.wasl-reading-body {
+  font-family: var(--wasl-reading-font);
+  font-size: calc(1.0625rem * var(--wasl-reading-scale));
+  font-weight: var(--wasl-reading-weight);
+  line-height: var(--wasl-reading-line-height);
+  word-spacing: var(--wasl-reading-word-spacing);
+  text-align: var(--wasl-reading-align);
+}
+
+.font-quran-reading {
+  font-family: var(--wasl-reading-font);
+  font-size: calc(var(--wasl-quran-size) * var(--wasl-mushaf-zoom));
+  font-weight: var(--wasl-reading-weight);
+  line-height: var(--wasl-reading-line-height);
+  word-spacing: var(--wasl-reading-word-spacing);
+}
