@@ -169,3 +169,41 @@ export function formatShareText(
 
   return lines.join("\n");
 }
+
+export function buildSocialShareLinks(options: {
+  payload: ShareCardPayload;
+  formattedText: string;
+  canonicalUrl: string;
+}): {
+  whatsappUrl: string;
+  telegramUrl: string;
+  xUrl: string;
+} {
+  const { payload, formattedText, canonicalUrl } = options;
+
+  // Avoid repeating URL twice in Telegram/X intent parameters
+  const textWithoutUrl = formattedText
+    .replace(canonicalUrl, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // X (Twitter) intent handles URL length separately (~23 chars); keep Arabic body + attribution crisp within ~235 chars
+  const xSourceParts = [
+    payload.kind === "allah_name" && payload.titleAr
+      ? `${payload.titleAr}`
+      : payload.arabicText,
+    payload.referenceAr ? `— ${payload.referenceAr}` : "",
+    "عبر وصل الإسلامية",
+  ].filter(Boolean);
+  const xCombined = xSourceParts.join("\n");
+  const xConcise =
+    xCombined.length > 235
+      ? `${xCombined.slice(0, 232).trim()}…`
+      : xCombined;
+
+  return {
+    whatsappUrl: `https://wa.me/?text=${encodeURIComponent(formattedText)}`,
+    telegramUrl: `https://t.me/share/url?url=${encodeURIComponent(canonicalUrl)}&text=${encodeURIComponent(textWithoutUrl)}`,
+    xUrl: `https://twitter.com/intent/tweet?text=${encodeURIComponent(xConcise)}&url=${encodeURIComponent(canonicalUrl)}`,
+  };
+}

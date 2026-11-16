@@ -10,7 +10,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PersistentAudioBar } from "@/components/layout/PersistentAudioBar";
 import { GlobalSearchModal } from "@/components/layout/GlobalSearchModal";
-import { ShareCardModal } from "@/components/share/ShareCardModal";
+import { LazyShareCardModal } from "@/components/share/LazyShareCardModal";
 import { NotificationDaemon } from "@/components/notifications/NotificationDaemon";
 import { ReleaseAnnouncementModal } from "@/components/releases/ReleaseAnnouncementModal";
 
@@ -163,7 +163,7 @@ export default function RootLayout({
                 <Footer />
                 <PersistentAudioBar />
                 <GlobalSearchModal />
-                <ShareCardModal />
+                <LazyShareCardModal />
                 <ReleaseAnnouncementModal />
               </AudioProvider>
             </ReadingPreferencesProvider>

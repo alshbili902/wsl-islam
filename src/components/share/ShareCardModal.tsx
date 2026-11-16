@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
   Check,
@@ -10,24 +10,35 @@ import {
   ChevronRight,
   Copy,
   Download,
+  ExternalLink,
   FileText,
   Image as ImageIcon,
   Link2,
   Loader2,
+  Lock,
+  MessageCircle,
+  Moon,
+  QrCode,
+  Send,
   Share2,
   Sparkles,
+  Sun,
   X,
 } from "lucide-react";
 import { useWasl } from "@/components/providers/WaslProvider";
 import {
   buildCanonicalShareUrl,
+  buildSocialShareLinks,
   formatShareText,
   KIND_LABELS,
 } from "@/lib/share/formatShareText";
 import {
+  ARCHITECTURE_LABELS,
   renderShareCardSlides,
+  resolveContentArchitecture,
   SHARE_TEMPLATES,
   type RenderedSlide,
+  type ShareAppearance,
   type ShareAspectRatio,
   type ShareTemplateId,
 } from "@/lib/share/renderShareCard";
@@ -69,14 +80,6 @@ async function copyTextWithFallback(text: string): Promise<boolean> {
   return false;
 }
 
-function getDefaultTemplateForTheme(
-  resolvedTheme: "light" | "dark" | "night"
-): ShareTemplateId {
-  if (resolvedTheme === "night") return "dark-emerald";
-  if (resolvedTheme === "dark") return "classic-emerald";
-  return "ivory-emerald";
-}
-
 function detectShareCapabilities() {
   if (typeof window === "undefined") {
     return {
@@ -98,9 +101,7 @@ function detectShareCapabilities() {
     typeof File !== "undefined"
   ) {
     try {
-      const probe = new File([new Uint8Array([0])], "wasl-probe.png", {
-        type: "image/png",
-      });
+      const probe = new File(["wasl"], "probe.png", { type: "image/png" });
       nativeShareFile = nav.canShare({ files: [probe] });
     } catch {
       nativeShareFile = false;
@@ -108,7 +109,7 @@ function detectShareCapabilities() {
   }
 
   const clipboardImage =
-    typeof nav.clipboard?.write === "function" &&
+    typeof navigator.clipboard?.write === "function" &&
     typeof window.ClipboardItem !== "undefined";
 
   return {
@@ -149,11 +150,21 @@ function ShareCardModalInner({
   locale,
   resolvedTheme,
 }: ShareCardModalInnerProps) {
-  const [activeTab, setActiveTab] = useState<ShareTab>("image");
-  const [templateId, setTemplateId] = useState<ShareTemplateId>(() =>
-    getDefaultTemplateForTheme(resolvedTheme)
+  const reducedMotion = useReducedMotion();
+  const architecture = useMemo(
+    () => resolveContentArchitecture(sharePayload.kind),
+    [sharePayload.kind]
   );
+  const archMeta = ARCHITECTURE_LABELS[architecture];
+
+  const [activeTab, setActiveTab] = useState<ShareTab>("image");
+  const [templateId, setTemplateId] = useState<ShareTemplateId>(
+    archMeta.defaultTemplate
+  );
+  const [appearance, setAppearance] = useState<ShareAppearance>(resolvedTheme);
   const [ratio, setRatio] = useState<ShareAspectRatio>("square");
+  const [showLogo, setShowLogo] = useState(true);
+  const [showQr, setShowQr] = useState(true);
   const [showEnglish, setShowEnglish] = useState(
     () => locale === "en" && Boolean(sharePayload.englishText)
   );
@@ -171,6 +182,7 @@ function ShareCardModalInner({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<StatusFeedback | null>(null);
 
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const capabilities = useMemo(() => detectShareCapabilities(), []);
   const slidesRef = useRef<RenderedSlide[]>([]);
 
@@ -184,8 +196,9 @@ function ShareCardModalInner({
     }
   }, []);
 
-  // Keyboard Escape handler
+  // Initial focus + Escape key handler
   useEffect(() => {
+    closeBtnRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeShareCard();
@@ -195,20 +208,22 @@ function ShareCardModalInner({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [closeShareCard]);
 
-  const renderKey = `${templateId}|${ratio}|${showEnglish ? 1 : 0}|${locale}|${sharePayload.kind}|${sharePayload.arabicText.length}|${sharePayload.referenceAr}`;
+  const renderKey = `${templateId}|${appearance}|${ratio}|${showLogo ? 1 : 0}|${showQr ? 1 : 0}|${showEnglish ? 1 : 0}|${locale}|${sharePayload.kind}|${sharePayload.arabicText.length}|${sharePayload.referenceAr}`;
   const rendering = slidesState.key !== renderKey;
   const slides = slidesState.slides;
   const renderError = slidesState.key === renderKey ? slidesState.error : null;
 
-  // Render real PNG slides whenever image options change
   useEffect(() => {
     let cancelled = false;
 
     renderShareCardSlides({
       payload: sharePayload,
       templateId,
+      appearance,
       ratio,
       includeEnglish: showEnglish,
+      showLogo,
+      showQr,
       locale,
     })
       .then((rendered) => {
@@ -239,9 +254,20 @@ function ShareCardModalInner({
     return () => {
       cancelled = true;
     };
-  }, [sharePayload, templateId, ratio, showEnglish, locale, renderKey, revokeSlides]);
+  }, [
+    sharePayload,
+    templateId,
+    appearance,
+    ratio,
+    showLogo,
+    showQr,
+    showEnglish,
+    locale,
+    renderKey,
+    revokeSlides,
+  ]);
 
-  // Clean up object URLs on unmount
+  // Clean up Blob URLs on unmount
   useEffect(() => {
     return () => {
       revokeSlides(slidesRef.current);
@@ -260,13 +286,21 @@ function ShareCardModalInner({
     return buildCanonicalShareUrl(sharePayload.shareUrl);
   }, [sharePayload]);
 
+  const socialLinks = useMemo(() => {
+    return buildSocialShareLinks({
+      payload: sharePayload,
+      formattedText,
+      canonicalUrl,
+    });
+  }, [sharePayload, formattedText, canonicalUrl]);
+
   const activeSlide = slides[activeSlideIndex] ?? null;
 
   const triggerDownloadSlide = (slide: RenderedSlide) => {
     const link = document.createElement("a");
     const suffix =
       slide.totalPages > 1 ? `-p${slide.pageNumber}of${slide.totalPages}` : "";
-    link.download = `wasl-${sharePayload.kind}${suffix}-${Date.now()}.png`;
+    link.download = `wasl-${sharePayload.kind}-${ratio}${suffix}-${Date.now()}.png`;
     link.href = slide.objectUrl;
     document.body.appendChild(link);
     link.click();
@@ -282,8 +316,8 @@ function ShareCardModalInner({
         tone: "success",
         message:
           locale === "ar"
-            ? "تم تنزيل الصورة بصيغة PNG بنجاح"
-            : "PNG image downloaded successfully",
+            ? "تم تنزيل الصورة عالية الدقة (PNG) بنجاح"
+            : "High-resolution PNG image downloaded successfully",
       });
     } catch {
       setFeedback({
@@ -312,7 +346,10 @@ function ShareCardModalInner({
   };
 
   const handleShareImageNative = async () => {
-    if (!capabilities.nativeShareFile || slides.length === 0) return;
+    if (!capabilities.nativeShareFile || slides.length === 0) {
+      handleDownloadImage();
+      return;
+    }
     setBusyAction("share-image");
     setFeedback(null);
     try {
@@ -326,19 +363,20 @@ function ShareCardModalInner({
       );
 
       if (navigator.canShare && !navigator.canShare({ files })) {
+        triggerDownloadSlide(activeSlide!);
         setFeedback({
-          tone: "error",
+          tone: "info",
           message:
             locale === "ar"
-              ? "مشاركة ملفات الصور غير مدعومة على هذا المتصفح. يمكنك تنزيل الصورة مباشرة."
-              : "Sharing image files is not supported on this browser. Please download the PNG instead.",
+              ? "مشاركة ملفات الصور غير مدعومة مباشرة؛ تم تنزيل الصورة لجهازك."
+              : "Direct file share is not supported here; PNG downloaded as fallback.",
         });
         return;
       }
 
       await navigator.share({
         title: "وصل الإسلامية — Wasl Islamic",
-        text: `${sharePayload.referenceAr}\nوصل الإسلامية @waslofficiall`,
+        text: `${sharePayload.referenceAr}\n${canonicalUrl}`,
         files,
       });
 
@@ -346,7 +384,7 @@ function ShareCardModalInner({
         tone: "success",
         message:
           locale === "ar"
-            ? "تمت مشاركة الصورة بنجاح"
+            ? "تمت مشاركة البطاقة المصورة بنجاح"
             : "Image shared successfully",
       });
     } catch (err) {
@@ -383,7 +421,7 @@ function ShareCardModalInner({
         tone: "success",
         message:
           locale === "ar"
-            ? "تم نسخ الصورة إلى الحافظة بنجاح"
+            ? "تم نسخ البطاقة إلى الحافظة بنجاح"
             : "Image copied to clipboard",
       });
     } catch {
@@ -433,8 +471,8 @@ function ShareCardModalInner({
         tone: "success",
         message:
           locale === "ar"
-            ? "تم نسخ رابط المصدر بنجاح"
-            : "Source link copied to clipboard",
+            ? "تم نسخ رابط المحتوى الموثق بنجاح"
+            : "Canonical content URL copied to clipboard",
       });
     } else {
       setFeedback({
@@ -477,8 +515,8 @@ function ShareCardModalInner({
           tone: "error",
           message:
             locale === "ar"
-              ? "تعذرت المشاركة عبر النظام. يمكنك نسخ النص بدلاً من ذلك."
-              : "Native share failed. Please use Copy Text instead.",
+              ? "تعذرت المشاركة عبر النظام. يمكنك نسخ النص أو استخدام أزرار المنصات."
+              : "Native share failed. Please copy text or use platform buttons.",
         });
       }
     } finally {
@@ -489,25 +527,36 @@ function ShareCardModalInner({
   const kindLabel =
     KIND_LABELS[sharePayload.kind][locale === "en" ? "en" : "ar"];
 
+  const hasMandatoryAttribution =
+    sharePayload.kind === "verse" ||
+    sharePayload.kind === "surah" ||
+    sharePayload.kind === "hadith" ||
+    sharePayload.kind === "tafsir";
+
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
+        initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        exit={reducedMotion ? { opacity: 0 } : { opacity: 0 }}
         onClick={closeShareCard}
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-sm sm:p-6 overflow-y-auto"
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-sm sm:p-5 overflow-y-auto overflow-x-hidden"
         role="dialog"
         aria-modal="true"
-        aria-label={locale === "ar" ? "مشاركة المحتوى" : "Share Islamic Content"}
+        aria-labelledby="wasl-share-dialog-title"
       >
         <motion.div
-          initial={{ opacity: 0, y: 28, scale: 0.98 }}
+          dir={locale === "en" ? "ltr" : "rtl"}
+          initial={
+            reducedMotion ? { opacity: 1 } : { opacity: 0, y: 24, scale: 0.98 }
+          }
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.98 }}
-          transition={{ duration: 0.2 }}
+          exit={
+            reducedMotion ? { opacity: 0 } : { opacity: 0, y: 18, scale: 0.98 }
+          }
+          transition={{ duration: reducedMotion ? 0 : 0.2 }}
           onClick={(e) => e.stopPropagation()}
-          className="wasl-surface relative w-full max-w-4xl rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 max-h-[92dvh] overflow-y-auto shadow-2xl"
+          className="wasl-surface relative w-full max-w-5xl rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 max-h-[94dvh] overflow-y-auto overflow-x-hidden shadow-2xl"
         >
           {/* Mobile bottom-sheet handle */}
           <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[var(--border-strong)] sm:hidden" />
@@ -515,14 +564,24 @@ function ShareCardModalInner({
           {/* Header */}
           <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3.5 mb-4">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-gold-soft)] text-[var(--brand-gold)]">
-                <Sparkles className="h-4 w-4" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-gold-soft)] text-[var(--brand-gold)]">
+                <Sparkles className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-bold truncate">
-                  {locale === "ar" ? "مشاركة المحتوى" : "Share Content"}
-                </h2>
-                <p className="text-xs text-[var(--text-muted)] truncate">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2
+                    id="wasl-share-dialog-title"
+                    className="text-base sm:text-lg font-bold truncate"
+                  >
+                    {locale === "ar"
+                      ? "مشاركة بطاقة وصل الإسلامية"
+                      : "Share Content Card"}
+                  </h2>
+                  <span className="rounded-full bg-[var(--brand-emerald-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--brand-emerald)]">
+                    {locale === "ar" ? archMeta.ar : archMeta.en}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
                   {kindLabel}
                   {sharePayload.referenceAr ? ` • ${sharePayload.referenceAr}` : ""}
                 </p>
@@ -530,10 +589,11 @@ function ShareCardModalInner({
             </div>
 
             <button
+              ref={closeBtnRef}
               type="button"
               onClick={closeShareCard}
-              aria-label={locale === "ar" ? "إغلاق" : "Close"}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] hover:bg-[var(--bg-surface-alt)] transition-colors"
+              aria-label={locale === "ar" ? "إغلاق نافذة المشاركة" : "Close Share Modal"}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] hover:bg-[var(--bg-surface-alt)] transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -553,14 +613,14 @@ function ShareCardModalInner({
                 setActiveTab("image");
                 setFeedback(null);
               }}
-              className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "image"
                   ? "bg-[var(--bg-surface)] text-[var(--brand-emerald)] shadow-sm border border-[var(--border-subtle)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <ImageIcon className="h-4 w-4" />
-              <span>{locale === "ar" ? "مشاركة كصورة" : "Share as Image"}</span>
+              <span>{locale === "ar" ? "بطاقة مصورة (PNG)" : "Share as Image"}</span>
             </button>
 
             <button
@@ -571,27 +631,27 @@ function ShareCardModalInner({
                 setActiveTab("text");
                 setFeedback(null);
               }}
-              className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "text"
                   ? "bg-[var(--bg-surface)] text-[var(--brand-emerald)] shadow-sm border border-[var(--border-subtle)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <FileText className="h-4 w-4" />
-              <span>{locale === "ar" ? "مشاركة كنص" : "Share as Text"}</span>
+              <span>{locale === "ar" ? "نص منسّق وروابط" : "Share Text & Links"}</span>
             </button>
           </div>
 
           {activeTab === "image" ? (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Real PNG Image Preview */}
-              <div className="lg:col-span-7 flex flex-col items-center justify-center bg-[var(--bg-surface-alt)] rounded-2xl p-4 sm:p-5 border border-[var(--border-subtle)] min-h-[320px]">
+              {/* Live Rendered PNG Preview */}
+              <div className="lg:col-span-6 flex flex-col items-center justify-center bg-[var(--bg-surface-alt)] rounded-2xl p-4 sm:p-5 border border-[var(--border-subtle)] min-h-[340px]">
                 {rendering && !activeSlide ? (
                   <div className="flex flex-col items-center gap-3 py-16 text-sm text-[var(--text-muted)]">
                     <Loader2 className="h-7 w-7 animate-spin text-[var(--brand-emerald)]" />
                     <span>
                       {locale === "ar"
-                        ? "جاري تصميم البطاقة عالية الدقة..."
+                        ? "جاري تصميم البطاقة بدقة عالية..."
                         : "Rendering high-resolution PNG..."}
                     </span>
                   </div>
@@ -610,7 +670,7 @@ function ShareCardModalInner({
                             ? "معاينة بطاقة المشاركة"
                             : "Share card PNG preview"
                         }
-                        className="max-h-[440px] w-auto rounded-2xl shadow-xl object-contain border border-[var(--border-subtle)]"
+                        className="max-h-[460px] w-auto rounded-2xl shadow-xl object-contain border border-[var(--border-subtle)]"
                       />
                       {rendering ? (
                         <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/25 backdrop-blur-[1px]">
@@ -619,53 +679,58 @@ function ShareCardModalInner({
                       ) : null}
                     </div>
 
-                    {slides.length > 1 ? (
-                      <div className="flex items-center justify-center gap-3 pt-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveSlideIndex((i) => Math.max(0, i - 1))
-                          }
-                          disabled={activeSlideIndex === 0}
-                          aria-label={
-                            locale === "ar" ? "الشريحة السابقة" : "Previous slide"
-                          }
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] disabled:opacity-40"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                        <span className="text-xs font-mono font-semibold text-[var(--text-secondary)]">
-                          {activeSlide.pageNumber} / {activeSlide.totalPages}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveSlideIndex((i) =>
-                              Math.min(slides.length - 1, i + 1)
-                            )
-                          }
-                          disabled={activeSlideIndex === slides.length - 1}
-                          aria-label={
-                            locale === "ar" ? "الشريحة التالية" : "Next slide"
-                          }
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] disabled:opacity-40"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : null}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--text-muted)] px-1">
+                      <span className="font-mono">
+                        {activeSlide.width} × {activeSlide.height} px (PNG)
+                      </span>
+                      {slides.length > 1 ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveSlideIndex((i) => Math.max(0, i - 1))
+                            }
+                            disabled={activeSlideIndex === 0}
+                            aria-label={
+                              locale === "ar" ? "الشريحة السابقة" : "Previous slide"
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] disabled:opacity-40 cursor-pointer"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                          <span className="font-mono font-semibold text-[var(--text-secondary)]">
+                            {activeSlide.pageNumber} / {activeSlide.totalPages}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveSlideIndex((i) =>
+                                Math.min(slides.length - 1, i + 1)
+                              )
+                            }
+                            disabled={activeSlideIndex === slides.length - 1}
+                            aria-label={
+                              locale === "ar" ? "الشريحة التالية" : "Next slide"
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] disabled:opacity-40 cursor-pointer"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
               </div>
 
-              {/* Image Controls */}
-              <div className="lg:col-span-5 space-y-5">
-                {/* 5 Official Templates */}
+              {/* Live Customization & Actions Panel */}
+              <div className="lg:col-span-6 space-y-4">
+                {/* 1. Templates */}
                 <div>
-                  <p className="text-sm font-semibold mb-2.5">
-                    {locale === "ar" ? "قوالب وصل الرسمية" : "Card Templates"}
+                  <p className="text-xs font-bold text-[var(--text-secondary)] mb-2">
+                    {locale === "ar" ? "القوالب الرسمية" : "Card Templates"}
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {(Object.keys(SHARE_TEMPLATES) as ShareTemplateId[]).map(
                       (key) => {
                         const tpl = SHARE_TEMPLATES[key];
@@ -674,15 +739,18 @@ function ShareCardModalInner({
                           <button
                             key={key}
                             type="button"
-                            onClick={() => setTemplateId(key)}
-                            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-xs font-medium transition-all min-h-[44px] ${
+                            onClick={() => {
+                              setTemplateId(key);
+                              setAppearance(tpl.isDarkSurface ? "night" : "light");
+                            }}
+                            className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 text-xs font-medium transition-all min-h-[42px] cursor-pointer ${
                               selected
                                 ? "border-[var(--brand-gold)] bg-[var(--brand-emerald-soft)] text-[var(--brand-emerald)] font-semibold"
                                 : "border-[var(--border-subtle)] hover:bg-[var(--bg-surface-alt)]"
                             }`}
                           >
                             <span
-                              className="h-5 w-5 shrink-0 rounded-full border border-white/25 shadow-inner"
+                              className="h-4 w-4 shrink-0 rounded-full border border-white/25 shadow-inner"
                               style={{ background: tpl.swatchGradient }}
                             />
                             <span className="truncate">
@@ -695,43 +763,116 @@ function ShareCardModalInner({
                   </div>
                 </div>
 
-                {/* Aspect Ratio */}
+                {/* 2. Appearance (Light / Dark / Night) */}
                 <div>
-                  <p className="text-sm font-semibold mb-2">
-                    {locale === "ar" ? "مقاس الصورة" : "Dimensions"}
+                  <p className="text-xs font-bold text-[var(--text-secondary)] mb-2">
+                    {locale === "ar" ? "مظهر البطاقة" : "Card Appearance"}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        {
+                          id: "light" as const,
+                          ar: "نهاري",
+                          en: "Light",
+                          icon: <Sun className="h-3.5 w-3.5 text-amber-500" />,
+                        },
+                        {
+                          id: "dark" as const,
+                          ar: "داكن",
+                          en: "Dark",
+                          icon: <Moon className="h-3.5 w-3.5" />,
+                        },
+                        {
+                          id: "night" as const,
+                          ar: "ليلي فاخر",
+                          en: "Night",
+                          icon: <Sparkles className="h-3.5 w-3.5 text-[var(--brand-gold)]" />,
+                        },
+                      ]
+                    ).map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setAppearance(mode.id)}
+                        className={`inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-xl border px-2.5 py-1.5 text-xs font-medium cursor-pointer transition-colors ${
+                          appearance === mode.id
+                            ? "border-[var(--brand-gold)] bg-[var(--brand-emerald-soft)] text-[var(--brand-emerald)] font-semibold"
+                            : "border-[var(--border-subtle)] hover:bg-[var(--bg-surface-alt)]"
+                        }`}
+                      >
+                        {mode.icon}
+                        <span>{locale === "ar" ? mode.ar : mode.en}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Dimensions: Square (1:1) vs Story (9:16) */}
+                <div>
+                  <p className="text-xs font-bold text-[var(--text-secondary)] mb-2">
+                    {locale === "ar" ? "مقاس التصدير" : "Export Format"}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setRatio("square")}
-                      className={`min-h-[44px] rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${
+                      className={`min-h-[42px] rounded-xl border px-3 py-2 text-xs font-medium cursor-pointer transition-colors ${
                         ratio === "square"
                           ? "border-[var(--brand-gold)] bg-[var(--brand-emerald-soft)] text-[var(--brand-emerald)] font-semibold"
                           : "border-[var(--border-subtle)] hover:bg-[var(--bg-surface-alt)]"
                       }`}
                     >
-                      {locale === "ar" ? "مربع (1:1)" : "Square (1:1)"}
+                      {locale === "ar" ? "منشور مربع (1:1)" : "Square Post (1:1)"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRatio("portrait")}
-                      className={`min-h-[44px] rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${
-                        ratio === "portrait"
+                      onClick={() => setRatio("story")}
+                      className={`min-h-[42px] rounded-xl border px-3 py-2 text-xs font-medium cursor-pointer transition-colors ${
+                        ratio === "story" || ratio === "portrait"
                           ? "border-[var(--brand-gold)] bg-[var(--brand-emerald-soft)] text-[var(--brand-emerald)] font-semibold"
                           : "border-[var(--border-subtle)] hover:bg-[var(--bg-surface-alt)]"
                       }`}
                     >
-                      {locale === "ar" ? "عمودي (ستوري)" : "Portrait (Story)"}
+                      {locale === "ar" ? "ستوري عمودي (9:16)" : "Vertical Story (9:16)"}
                     </button>
                   </div>
                 </div>
 
+                {/* 4. Custom Toggles (Logo / QR / Translation) */}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] px-3 py-2.5 cursor-pointer min-h-[42px]">
+                    <span className="text-xs font-medium">
+                      {locale === "ar" ? "شعار وصل" : "Show Logo"}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={showLogo}
+                      onChange={(e) => setShowLogo(e.target.checked)}
+                      className="h-4 w-4 accent-[var(--brand-emerald)]"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] px-3 py-2.5 cursor-pointer min-h-[42px]">
+                    <span className="text-xs font-medium inline-flex items-center gap-1">
+                      <QrCode className="h-3.5 w-3.5 text-[var(--brand-emerald)]" />
+                      {locale === "ar" ? "رمز QR" : "QR Code"}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={showQr}
+                      onChange={(e) => setShowQr(e.target.checked)}
+                      className="h-4 w-4 accent-[var(--brand-emerald)]"
+                    />
+                  </label>
+                </div>
+
                 {sharePayload.englishText ? (
-                  <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] px-4 py-3 cursor-pointer min-h-[44px]">
-                    <span className="text-sm font-medium">
+                  <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] px-3.5 py-2.5 cursor-pointer min-h-[42px]">
+                    <span className="text-xs font-medium">
                       {locale === "ar"
-                        ? "تضمين الترجمة الإنجليزية"
-                        : "Include English translation"}
+                        ? "تضمين الترجمة الموثقة"
+                        : "Include Verified Translation"}
                     </span>
                     <input
                       type="checkbox"
@@ -742,47 +883,62 @@ function ShareCardModalInner({
                   </label>
                 ) : null}
 
-                {/* Image Action Buttons */}
-                <div className="space-y-2.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={
-                      slides.length > 1
-                        ? handleDownloadAllSlides
-                        : handleDownloadImage
-                    }
-                    disabled={rendering || !activeSlide}
-                    className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-emerald)] hover:bg-[var(--brand-emerald-strong)] text-white font-semibold py-3 px-4 transition-colors disabled:opacity-50"
-                  >
-                    <Download className="h-4 w-4" />
+                {hasMandatoryAttribution && (
+                  <div className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-alt)]/60 px-3 py-2 text-[11px] text-[var(--text-muted)]">
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--brand-gold)]" />
                     <span>
-                      {slides.length > 1
-                        ? locale === "ar"
-                          ? `تحميل جميع الصور (${slides.length} PNG)`
-                          : `Download All (${slides.length} PNGs)`
-                        : locale === "ar"
-                          ? "تحميل الصورة (PNG)"
-                          : "Download PNG Image"}
+                      {locale === "ar"
+                        ? "المرجع الشرعي والمصدر ثابتان ولا يمكن إخفاؤهما حفاظاً على توثيق النص."
+                        : "Verified Quranic/Hadith attribution is protected and always preserved."}
                     </span>
-                  </button>
+                  </div>
+                )}
 
-                  {capabilities.nativeShareFile ? (
+                {/* 5. Primary Export & Share Buttons */}
+                <div className="space-y-2 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={
+                        slides.length > 1
+                          ? handleDownloadAllSlides
+                          : handleDownloadImage
+                      }
+                      disabled={rendering || !activeSlide}
+                      className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-emerald)] hover:bg-[var(--brand-emerald-strong)] text-white text-xs sm:text-sm font-semibold py-2.5 px-4 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>
+                        {slides.length > 1
+                          ? locale === "ar"
+                            ? `تنزيل (${slides.length} PNG)`
+                            : `Download (${slides.length} PNG)`
+                          : locale === "ar"
+                            ? "تنزيل الصورة (PNG)"
+                            : "Download PNG"}
+                      </span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={handleShareImageNative}
                       disabled={
                         rendering || !activeSlide || busyAction === "share-image"
                       }
-                      className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--brand-gold)]/50 bg-[var(--brand-gold-soft)] hover:bg-[var(--brand-gold)]/20 font-semibold py-2.5 px-4 transition-colors text-sm disabled:opacity-50"
+                      className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--brand-gold)]/50 bg-[var(--brand-gold-soft)] hover:bg-[var(--brand-gold)]/20 text-xs sm:text-sm font-semibold py-2.5 px-4 transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       <Share2 className="h-4 w-4 text-[var(--brand-gold)]" />
                       <span>
-                        {locale === "ar"
-                          ? "مشاركة الصورة مباشرة"
-                          : "Share Image via Device"}
+                        {capabilities.nativeShareFile
+                          ? locale === "ar"
+                            ? "مشاركة عبر الجهاز"
+                            : "Share Image"
+                          : locale === "ar"
+                            ? "تنزيل للمشاركة"
+                            : "Save to Share"}
                       </span>
                     </button>
-                  ) : null}
+                  </div>
 
                   {capabilities.clipboardImage ? (
                     <button
@@ -791,26 +947,80 @@ function ShareCardModalInner({
                       disabled={
                         rendering || !activeSlide || busyAction === "copy-image"
                       }
-                      className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] hover:bg-[var(--bg-surface-alt)] font-medium py-2.5 px-4 transition-colors text-sm disabled:opacity-50"
+                      className="w-full min-h-[40px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] hover:bg-[var(--bg-surface-alt)] font-medium py-2 px-4 transition-colors text-xs cursor-pointer disabled:opacity-50"
                     >
-                      <Copy className="h-4 w-4" />
+                      <Copy className="h-3.5 w-3.5" />
                       <span>
-                        {locale === "ar" ? "نسخ الصورة" : "Copy Image"}
+                        {locale === "ar" ? "نسخ الصورة للحافظة" : "Copy Image"}
                       </span>
                     </button>
                   ) : null}
+
+                  {/* Direct Social Share Row */}
+                  <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                    <p className="text-[11px] font-semibold text-[var(--text-muted)]">
+                      {locale === "ar"
+                        ? "مشاركة النص والرابط الموثق مباشرة:"
+                        : "Share verified text & link via:"}
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      <a
+                        href={socialLinks.whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        <span>{locale === "ar" ? "واتساب" : "WhatsApp"}</span>
+                      </a>
+                      <a
+                        href={socialLinks.telegramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-500/35 bg-sky-500/10 px-2.5 py-2 text-xs font-semibold text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 transition-colors"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>{locale === "ar" ? "تيليجرام" : "Telegram"}</span>
+                      </a>
+                      <a
+                        href={socialLinks.xUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-2.5 py-2 text-xs font-semibold hover:bg-[var(--bg-surface-alt)] transition-colors"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span>إكس (X)</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleCopyText}
+                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-2 text-xs font-medium hover:bg-[var(--bg-surface-alt)] cursor-pointer"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>{locale === "ar" ? "نسخ النص" : "Copy Text"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyUrl}
+                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-2 text-xs font-medium hover:bg-[var(--bg-surface-alt)] cursor-pointer"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        <span>{locale === "ar" ? "الرابط" : "Copy Link"}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           ) : (
-            /* Tab B: Share as Formatted Text */
+            /* Tab B: Share Formatted Text & Direct Platforms */
             <div className="space-y-4">
               {sharePayload.englishText ? (
                 <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] px-4 py-3 cursor-pointer min-h-[44px]">
                   <span className="text-sm font-medium">
                     {locale === "ar"
-                      ? "تضمين الترجمة الإنجليزية في النص"
-                      : "Include English translation in text"}
+                      ? "تضمين الترجمة الموثقة في النص"
+                      : "Include verified translation in text"}
                   </span>
                   <input
                     type="checkbox"
@@ -821,7 +1031,7 @@ function ShareCardModalInner({
                 </label>
               ) : null}
 
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 max-h-[42dvh] overflow-y-auto">
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 max-h-[38dvh] overflow-y-auto">
                 <pre
                   dir="rtl"
                   className="whitespace-pre-wrap break-words font-sans text-sm sm:text-base leading-relaxed text-[var(--text-primary)] select-all"
@@ -835,7 +1045,7 @@ function ShareCardModalInner({
                   type="button"
                   onClick={handleCopyText}
                   disabled={busyAction === "copy-text"}
-                  className="min-h-[46px] inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-emerald)] hover:bg-[var(--brand-emerald-strong)] text-white font-semibold py-2.5 px-4 transition-colors text-sm"
+                  className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-emerald)] hover:bg-[var(--brand-emerald-strong)] text-white font-semibold py-2.5 px-4 transition-colors text-sm cursor-pointer"
                 >
                   <Copy className="h-4 w-4" />
                   <span>
@@ -848,13 +1058,11 @@ function ShareCardModalInner({
                     type="button"
                     onClick={handleShareTextNative}
                     disabled={busyAction === "share-text"}
-                    className="min-h-[46px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--brand-gold)]/50 bg-[var(--brand-gold-soft)] hover:bg-[var(--brand-gold)]/20 font-semibold py-2.5 px-4 transition-colors text-sm"
+                    className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--brand-gold)]/50 bg-[var(--brand-gold-soft)] hover:bg-[var(--brand-gold)]/20 font-semibold py-2.5 px-4 transition-colors text-sm cursor-pointer"
                   >
                     <Share2 className="h-4 w-4 text-[var(--brand-gold)]" />
                     <span>
-                      {locale === "ar"
-                        ? "مشاركة عبر الجهاز"
-                        : "Native Share"}
+                      {locale === "ar" ? "مشاركة عبر الجهاز" : "Native Share"}
                     </span>
                   </button>
                 ) : null}
@@ -863,13 +1071,43 @@ function ShareCardModalInner({
                   type="button"
                   onClick={handleCopyUrl}
                   disabled={busyAction === "copy-url"}
-                  className="min-h-[46px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] hover:bg-[var(--bg-surface-alt)] font-medium py-2.5 px-4 transition-colors text-sm"
+                  className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] hover:bg-[var(--bg-surface-alt)] font-medium py-2.5 px-4 transition-colors text-sm cursor-pointer"
                 >
                   <Link2 className="h-4 w-4" />
                   <span>
-                    {locale === "ar" ? "نسخ رابط المصدر" : "Copy Source URL"}
+                    {locale === "ar" ? "نسخ رابط المحتوى" : "Copy Link"}
                   </span>
                 </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                <a
+                  href={socialLinks.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-h-[42px] inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>{locale === "ar" ? "مشاركة واتساب" : "WhatsApp"}</span>
+                </a>
+                <a
+                  href={socialLinks.telegramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-h-[42px] inline-flex items-center justify-center gap-2 rounded-xl border border-sky-500/35 bg-sky-500/10 px-3 py-2 text-xs sm:text-sm font-semibold text-sky-700 dark:text-sky-300 hover:bg-sky-500/20"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>{locale === "ar" ? "مشاركة تيليجرام" : "Telegram"}</span>
+                </a>
+                <a
+                  href={socialLinks.xUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-h-[42px] inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 py-2 text-xs sm:text-sm font-semibold hover:bg-[var(--bg-surface-alt)]"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span>{locale === "ar" ? "مشاركة إكس (X)" : "Share on X"}</span>
+                </a>
               </div>
             </div>
           )}

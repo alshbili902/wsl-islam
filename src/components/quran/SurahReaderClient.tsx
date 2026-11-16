@@ -549,7 +549,7 @@ export function SurahReaderClient({
                         surahNameEn: surah.englishName,
                         surahNumber: surah.number,
                         ayahNumber: ayah.numberInSurah,
-                        shareUrl: `/quran/${surah.number}`,
+                        shareUrl: `/quran/${surah.number}#ayah-${ayah.numberInSurah}`,
                       }}
                     />
                   </div>
