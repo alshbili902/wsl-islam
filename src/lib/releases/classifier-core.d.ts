@@ -13,6 +13,7 @@ export interface AnalyzedReleaseResult {
   titleAr: string;
   summaryAr: string;
   categories: ReleaseCategoryGroup[];
+  releaseNotes: string[];
   highlightsCount: number;
 }
 

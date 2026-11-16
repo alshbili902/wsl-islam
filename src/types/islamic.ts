@@ -648,7 +648,28 @@ export interface ReleaseCategoryGroup {
   items: string[];
 }
 
-export type ReleaseStatus = "pending" | "published" | "failed" | "skipped";
+export type ReleaseStatus =
+  | "pending"
+  | "published"
+  | "failed"
+  | "skipped"
+  | "rejected"
+  | "superseded";
+
+export type ReleaseVerificationStatus =
+  | "pending"
+  | "verified"
+  | "failed"
+  | "rejected"
+  | "skipped";
+
+export type ReleaseDeploymentStatus =
+  | "pending"
+  | "building"
+  | "deployed"
+  | "failed"
+  | "skipped"
+  | "superseded";
 
 export interface PlatformRelease {
   id: string;
@@ -657,8 +678,14 @@ export interface PlatformRelease {
   releaseVersion: string;
   titleAr: string;
   summaryAr: string;
+  releaseNotes: string[];
   categories: ReleaseCategoryGroup[];
   highlightsCount: number;
   releaseStatus: ReleaseStatus;
+  verificationStatus: ReleaseVerificationStatus;
+  deploymentStatus: ReleaseDeploymentStatus;
+  deploymentId?: string | null;
+  isPublished: boolean;
+  publishedAt: string;
   deployedAt: string;
 }

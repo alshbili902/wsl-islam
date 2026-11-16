@@ -322,3 +322,107 @@ html[data-reduced-motion="true"] *::after {
   line-height: var(--wasl-reading-line-height);
   word-spacing: var(--wasl-reading-word-spacing);
 }
+
+/* ---------- Realistic Interactive Digital Mushaf Book ---------- */
+.stf__parent {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  transform: translateZ(0);
+  touch-action: pan-y;
+}
+
+.stf__wrapper {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stf__parent canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+}
+
+.stf__block {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  perspective: 2200px;
+}
+
+.stf__item {
+  display: none;
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+.stf__outerShadow,
+.stf__innerShadow,
+.stf__hardShadow,
+.stf__hardInnerShadow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.mushaf-book-leather {
+  background: linear-gradient(145deg, #0d4432 0%, #07291e 48%, #041b13 100%);
+  box-shadow:
+    0 24px 54px -18px rgba(4, 24, 17, 0.55),
+    inset 0 1px 0 rgba(229, 193, 108, 0.35),
+    inset 0 0 0 2px rgba(229, 193, 108, 0.22);
+}
+
+.mushaf-paper-day {
+  background-color: #fbf5e6;
+  background-image:
+    radial-gradient(circle at 22% 18%, rgba(255, 253, 246, 0.72), transparent 52%),
+    radial-gradient(circle at 78% 82%, rgba(219, 200, 160, 0.24), transparent 55%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(166, 138, 86, 0.018) 0px,
+      rgba(166, 138, 86, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  color: #16231c;
+}
+
+.mushaf-paper-night {
+  background-color: #0b1c16;
+  background-image:
+    radial-gradient(circle at 50% 25%, rgba(26, 74, 56, 0.28), transparent 62%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(229, 193, 108, 0.02) 0px,
+      rgba(229, 193, 108, 0.02) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  color: #f3ecda;
+}
+
+.mushaf-gutter-right {
+  box-shadow:
+    inset 26px 0 34px -22px rgba(68, 48, 20, 0.32),
+    inset -6px 0 12px -8px rgba(68, 48, 20, 0.14);
+}
+
+.mushaf-gutter-left {
+  box-shadow:
+    inset -26px 0 34px -22px rgba(68, 48, 20, 0.32),
+    inset 6px 0 12px -8px rgba(68, 48, 20, 0.14);
+}
+
+.mushaf-night-gutter-right {
+  box-shadow: inset 26px 0 34px -22px rgba(0, 0, 0, 0.65);
+}
+
+.mushaf-night-gutter-left {
+  box-shadow: inset -26px 0 34px -22px rgba(0, 0, 0, 0.65);
+}

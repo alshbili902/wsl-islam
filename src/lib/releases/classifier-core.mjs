@@ -1,24 +1,46 @@
 // Pure ESM zero-dependency intelligent Git diff analyzer & Arabic changelog classifier.
-// Shared identically by the D7 release automation script and Next.js verification tests.
+// Shared identically by the automated release verification workflow and test suite.
 
 export const CATEGORY_DEFINITIONS = {
-  new_feature: { category: "new_feature", labelAr: "ميزات جديدة", labelEn: "New Features" },
-  improvement: { category: "improvement", labelAr: "تحسينات", labelEn: "Improvements" },
-  bug_fix: { category: "bug_fix", labelAr: "إصلاح أخطاء", labelEn: "Bug Fixes" },
-  performance: { category: "performance", labelAr: "تحسين الأداء", labelEn: "Performance" },
-  security: { category: "security", labelAr: "تحديثات الأمان", labelEn: "Security" },
-  ui_ux: { category: "ui_ux", labelAr: "تحسينات الواجهة والتجربة", labelEn: "UI / UX Changes" },
-  content: { category: "content", labelAr: "تحديثات المحتوى", labelEn: "Content Updates" },
-  maintenance: { category: "maintenance", labelAr: "صيانة داخلية", labelEn: "Internal Maintenance" },
+  new_feature: {
+    category: "new_feature",
+    labelAr: "إضافات جديدة",
+    labelEn: "New Features",
+  },
+  improvement: {
+    category: "improvement",
+    labelAr: "تحسينات",
+    labelEn: "Improvements",
+  },
+  bug_fix: {
+    category: "bug_fix",
+    labelAr: "إصلاحات",
+    labelEn: "Bug Fixes",
+  },
+  performance: {
+    category: "performance",
+    labelAr: "تحسينات الأداء",
+    labelEn: "Performance",
+  },
+  security: {
+    category: "security",
+    labelAr: "تحسينات الأمان",
+    labelEn: "Security",
+  },
+  maintenance: {
+    category: "maintenance",
+    labelAr: "صيانة داخلية",
+    labelEn: "Internal Maintenance",
+  },
 };
 
 const SENSITIVE_SCRUB_PATTERNS = [
   /postgres(ql)?:\/\/[^\s"'`]+/gi,
   /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(\.[A-Za-z0-9_-]+)?/g,
-  /(SUPABASE_SERVICE_ROLE_KEY|VAPID_PRIVATE_KEY|PUSH_CRON_SECRET|DATABASE_URL|API_KEY|SECRET|TOKEN|PASSWORD)\s*[:=]\s*\S+/gi,
+  /(SUPABASE_SERVICE_ROLE_KEY|VAPID_PRIVATE_KEY|PUSH_CRON_SECRET|RELEASE_WEBHOOK_SECRET|CLOUDFLARE_API_TOKEN|GITHUB_TOKEN|DATABASE_URL|API_KEY|SECRET|TOKEN|PASSWORD)\s*[:=]\s*\S+/gi,
   /[A-Za-z]:\\Users\\[^\s"'`]+/gi,
   /\/(Users|home)\/[^\s"'`]+/gi,
-  /\b(src|supabase|scripts)\/[A-Za-z0-9_./-]+\.(tsx?|jsx?|mjs|cjs|sql|json|ps1)\b/gi,
+  /\b(src|supabase|scripts|\.github)\/[A-Za-z0-9_./-]+\.(tsx?|jsx?|mjs|cjs|sql|json|ps1|ya?ml)\b/gi,
   /<script[\s\S]*?<\/script>/gi,
   /<[^>]+>/g,
 ];
@@ -38,8 +60,12 @@ export function sanitizePublicArabicText(text, maxLength = 240) {
 
 const IGNORED_PATH_PATTERNS = [
   /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$/i,
+  /^package\.json$/i,
   /\.tsbuildinfo$/i,
   /^next-env\.d\.ts$/i,
+  /^next\.config\./i,
+  /^wrangler\./i,
+  /^open-next\.config\./i,
   /^\.next\//i,
   /^\.gitignore$/i,
   /^\.env/i,
@@ -54,16 +80,14 @@ const IGNORED_PATH_PATTERNS = [
   /^supabase\//i,
   /^\.github\//i,
   /^src\/types\//i,
+  /^src\/lib\/supabase\//i,
+  /^src\/lib\/releases\//i,
+  /^src\/app\/api\/(version|health|releases)\//i,
 ];
 
 function isInternalMaintenancePath(filePath) {
   const norm = filePath.replace(/\\/g, "/");
-  if (IGNORED_PATH_PATTERNS.some((re) => re.test(norm))) return true;
-  if (/^package\.json$/i.test(norm)) return true;
-  if (/^src\/lib\/(supabase|releases\/store|releases\/classifier-core)/i.test(norm)) {
-    return true;
-  }
-  return false;
+  return IGNORED_PATH_PATTERNS.some((re) => re.test(norm));
 }
 
 function isTrivialFormattingOrCommentDiff(diffText) {
@@ -82,8 +106,11 @@ function isTrivialFormattingOrCommentDiff(diffText) {
     ) {
       continue;
     }
-    const clean = line
-      .slice(1)
+    const body = line.slice(1).trim();
+    // Ignore pure import-statement shuffling or comment/whitespace-only churn
+    if (!body || /^import\s+/.test(body)) continue;
+
+    const clean = body
       .replace(/\/\/.*$/g, "")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\s+/g, "");
@@ -101,22 +128,22 @@ function isTrivialFormattingOrCommentDiff(diffText) {
 
 const DOMAIN_CATALOG = [
   {
-    id: "updates",
-    match: /(updates|ReleaseAnnouncement|releases)/i,
-    labelAr: "سجل التحديثات وإعلانات المنصة",
-    featureDescAr: "إضافة نافذة إعلانات التحديثات الذكية وصفحة سجل الإصدارات لعرض كل جديد للزوار تلقائياً.",
+    id: "mushaf",
+    match: /(mushaf|quran)/i,
+    labelAr: "القرآن الكريم والمصحف الرقمي",
+    featureDescAr: "تطوير تجربة القراءة والتقليب التفاعلي في المصحف الشريف وتلاوة السور.",
   },
   {
     id: "listen",
     match: /(listen|reciter|AudioProvider|PersistentAudioBar|audio\/(catalog|normalize))/i,
     labelAr: "مركز الاستماع والمشغّل الصوتي",
-    featureDescAr: "تطوير مركز الاستماع الشامل وتوسيع فهرس القراء والروايات والمشغّل الصوتي المستمر.",
+    featureDescAr: "إثراء مركز الاستماع الشامل وتوسيع فهرس القراء والروايات والمشغّل الصوتي.",
   },
   {
-    id: "mushaf",
-    match: /(mushaf|quran)/i,
-    labelAr: "القرآن الكريم والمصحف الرقمي",
-    featureDescAr: "تطوير تجربة تصفح القرآن الكريم والمصحف الشريف وتلاوة السور.",
+    id: "share",
+    match: /(share|WaslShare|ShareCard)/i,
+    labelAr: "نظام بطاقات المشاركة",
+    featureDescAr: "تطوير تجربة مشاركة الآيات والأحاديث والأدعية كبطاقات مصممة وصور جاهزة للنشر.",
   },
   {
     id: "tafsir",
@@ -134,7 +161,7 @@ const DOMAIN_CATALOG = [
     id: "lectures",
     match: /lecture/i,
     labelAr: "مكتبة المحاضرات والدروس",
-    featureDescAr: "تطوير وتوسيع تصنيفات ومكتبة المحاضرات والدروس الإسلامية الموثقة.",
+    featureDescAr: "توسيع وتطوير مكتبة المحاضرات والدروس الإسلامية الموثقة.",
   },
   {
     id: "adhkar",
@@ -151,32 +178,26 @@ const DOMAIN_CATALOG = [
   {
     id: "prayer",
     match: /(prayer|adhan|calendar|ramadan)/i,
-    labelAr: "مواقيت الصلاة والتقويم والمواسم",
-    featureDescAr: "تحسين دقة عرض مواقيت الصلاة والتقويم الهجري والمواسم الدينية.",
+    labelAr: "مواقيت الصلاة والتقويم الهجري",
+    featureDescAr: "تحسين دقة عرض مواقيت الصلاة والتقويم الهجري والمواسم الإسلامية.",
   },
   {
     id: "notifications",
     match: /(notification|push)/i,
-    labelAr: "التنبيهات والتذكيرات الذكية",
-    featureDescAr: "تحسين منظومة التذكيرات الذكية وتنبيهات الأذكار والصلاة.",
-  },
-  {
-    id: "share",
-    match: /(share|WaslShare|ShareCard)/i,
-    labelAr: "مشاركة المحتوى كصورة ونص",
-    featureDescAr: "تطوير نظام بطاقات المشاركة البصرية والنصية للمحتوى الإسلامي.",
+    labelAr: "التنبيهات والتذكيرات",
+    featureDescAr: "تحسين موثوقية التذكيرات اليومية وتنبيهات الأذكار والصلاة.",
   },
   {
     id: "reading",
     match: /(reading-settings|ReadingPreferences)/i,
     labelAr: "إعدادات القراءة والخطوط",
-    featureDescAr: "تحسين تخصيص الخطوط والأحجام وأنماط الورق للقراءة المريحة.",
+    featureDescAr: "تحسين خيارات الخطوط والأحجام وأنماط الورق لراحة القراءة.",
   },
   {
     id: "zakat",
     match: /zakat/i,
-    labelAr: "حاسبة الزكاة والصدقات",
-    featureDescAr: "تحديث وتبسيط حساب الزكاة والأبواب المرافقة لها.",
+    labelAr: "حاسبة الزكاة",
+    featureDescAr: "تطوير وتبسيط حساب الزكاة والصدقات.",
   },
   {
     id: "quiz",
@@ -187,14 +208,20 @@ const DOMAIN_CATALOG = [
   {
     id: "knowledge",
     match: /(knowledge|articles|resources|glossary|names-of-allah)/i,
-    labelAr: "المعرفة الإسلامية والمصادر",
-    featureDescAr: "توسيع المقالات المعرفية وأسماء الله الحسنى والمصادر الموثقة.",
+    labelAr: "المعرفة الإسلامية وأسماء الله الحسنى",
+    featureDescAr: "توسيع المقالات العلمية وأسماء الله الحسنى والمصادر الموثقة.",
   },
   {
     id: "radio",
     match: /radio/i,
     labelAr: "الإذاعات الإسلامية المباشرة",
-    featureDescAr: "تحسين بث واستقرار الإذاعات القرآنية والإسلامية المباشرة.",
+    featureDescAr: "تحسين استقرار وجودة بث الإذاعات القرآنية والإسلامية المباشرة.",
+  },
+  {
+    id: "updates",
+    match: /(updates|ReleaseAnnouncement)/i,
+    labelAr: "نافذة وسجل التحديثات",
+    featureDescAr: "تحسين عرض إعلانات التحديثات وسجل الإصدارات الموثقة للزوار.",
   },
   {
     id: "navigation",
@@ -205,8 +232,8 @@ const DOMAIN_CATALOG = [
   {
     id: "branding",
     match: /(brand|WaslLogo|IslamicVisuals|globals\.css|public\/branding)/i,
-    labelAr: "الهوية البصرية والمظهر",
-    featureDescAr: "تحسينات على الهوية البصرية والألوان الإسلامية وتناسق العرض.",
+    labelAr: "التصميم والمظهر العام",
+    featureDescAr: "تحسينات بصرية على تناسق الواجهة والخطوط العربية في الوضعين الفاتح والداكن.",
   },
 ];
 
@@ -221,13 +248,12 @@ function detectDomain(filePath, diffText) {
   return {
     id: "platform",
     labelAr: "منصة وصل الإسلامية",
-    featureDescAr: "تطوير وتحديث تجربة الاستخدام في منصة وصل الإسلامية.",
+    featureDescAr: "تطوير وتحسين تجربة الاستخدام عبر صفحات منصة وصل الإسلامية.",
   };
 }
 
 function extractReadableArabicTitle(diffText, sourceSnippet = "") {
   const combined = `${diffText}\n${sourceSnippet}`;
-  // Look for Arabic metadata title or h1/h2 JSX prose cleanly without code tokens
   const matches = [
     ...combined.matchAll(/title\s*:\s*["'`]([^"'`\n]{6,90})["'`]/g),
     ...combined.matchAll(/<h1[^>]*>\s*([^<>{}\n]{5,90})\s*<\/h1>/g),
@@ -275,6 +301,7 @@ function classifySingleChange(file) {
   const domain = detectDomain(normPath, file.diff);
   const { addedText, removedText } = collectAddedRemovedLines(file.diff);
   const addedLower = addedText.toLowerCase();
+
   const isNewPage = /^src\/app\/.*\/page\.tsx$/i.test(normPath) && status === "A";
   const isNewComponent = /^src\/components\/.*\.tsx$/i.test(normPath) && status === "A";
   const isNewApi = /^src\/app\/api\/.*\/route\.ts$/i.test(normPath) && status === "A";
@@ -283,21 +310,21 @@ function classifySingleChange(file) {
 
   const arabicTitle = extractReadableArabicTitle(addedText, file.sourceSnippet || "");
 
-  // 1. Security hardening checks (always generalized safely, never leaking internals)
+  // 1. Safe user-relevant security enhancements (never expose secrets or internals)
   if (
-    /(sanitize|escapeHtml|RLS|ROW LEVEL SECURITY|Content-Security-Policy|X-Content-Type-Options|validate[A-Z]|rejectUnauthorized|SAFE_PROTOCOLS)/i.test(
+    /(sanitize|escapeHtml|Content-Security-Policy|X-Content-Type-Options|validate[A-Z]|rejectUnauthorized|SAFE_PROTOCOLS|rel="noopener)/i.test(
       addedText
     )
   ) {
     return {
       category: "security",
       domainId: domain.id,
-      bulletAr: `تعزيز موثوقية وحماية البيانات وسلامة العرض في ${domain.labelAr}.`,
+      bulletAr: `تعزيز موثوقية وحماية التصفح وسلامة عرض البيانات في ${domain.labelAr}.`,
     };
   }
 
   // 2. Genuine New Features
-  if (isNewPage || isNewApi || (isNewComponent && addedText.length > 400)) {
+  if (isNewPage || isNewApi || (isNewComponent && addedText.length > 360)) {
     const bullet = arabicTitle
       ? `إضافة ${arabicTitle} ضمن ${domain.labelAr} لتوسيع الخدمات المتاحة للزوار.`
       : domain.featureDescAr;
@@ -308,7 +335,7 @@ function classifySingleChange(file) {
     };
   }
 
-  // 3. Bug Fixes (real fix patterns, error handling, null guards, corrected routes/fields)
+  // 3. Bug Fixes
   const hasFixSignal =
     /(catch\s*\(|if\s*\(!|Array\.isArray|Number\.isFinite|\?\?|\?\.)/.test(addedText) &&
     removedText.length > 0 &&
@@ -339,20 +366,19 @@ function classifySingleChange(file) {
     return {
       category: "performance",
       domainId: domain.id,
-      bulletAr: `تحسين سرعة التحميل وكفاءة استرجاع وعرض المحتوى في ${domain.labelAr}.`,
+      bulletAr: `تسريع تحميل الصفحات وتحسين كفاءة عرض المحتوى في ${domain.labelAr}.`,
     };
   }
 
-  // 5. Content Updates
+  // 5. User-facing Content, Visual, and Functional Improvements -> grouped cleanly under "تحسينات"
   if (isDataFile || /public\/(data|branding)/i.test(normPath)) {
     return {
-      category: "content",
+      category: "improvement",
       domainId: domain.id,
       bulletAr: `تحديث وإثراء المحتوى والبيانات الموثقة في ${domain.labelAr}.`,
     };
   }
 
-  // 6. UI / UX improvements
   if (
     isCssOrVisual ||
     /(aria-|role=|reducedMotion|animate|transition-|sm:|md:|lg:|grid-cols|rounded-)/i.test(
@@ -360,18 +386,20 @@ function classifySingleChange(file) {
     )
   ) {
     return {
-      category: "ui_ux",
+      category: "improvement",
       domainId: domain.id,
-      bulletAr: `تحسين تصميم الواجهة وتجربة التصفح على الجوال وسطح المكتب في ${domain.labelAr}.`,
+      bulletAr: `تحسين تصميم الواجهة وتجربة القراءة والتنقل على الجوال وسطح المكتب في ${domain.labelAr}.`,
     };
   }
 
-  // 7. Feature / Functional Improvements on existing user-facing code
-  if (/^src\/(app|components)\//i.test(normPath) || /^src\/lib\/(audio|prayer|quran|tafsir|api|khatmah|share)/i.test(normPath)) {
+  if (
+    /^src\/(app|components)\//i.test(normPath) ||
+    /^src\/lib\/(audio|prayer|quran|tafsir|api|khatmah|share|mushaf)/i.test(normPath)
+  ) {
     return {
       category: "improvement",
       domainId: domain.id,
-      bulletAr: `تطوير وتحسين خصائص التصفح والتفاعل في ${domain.labelAr}.`,
+      bulletAr: `تطوير وتحسين خصائص التفاعل وسهولة الاستخدام في ${domain.labelAr}.`,
     };
   }
 
@@ -390,7 +418,6 @@ export function bumpSemanticVersion(previousVersion, categories) {
   let patch = Number.isFinite(parts[2]) ? parts[2] : 0;
 
   if (major === 0 && minor <= 1) {
-    // Move baseline from initial scaffold 0.1.0 cleanly to 1.0.0+ releases
     major = 1;
     minor = 0;
     patch = 0;
@@ -435,24 +462,29 @@ export function analyzeGitChanges({ files = [], previousVersion = "1.0.0" }) {
   const orderedCategories = [
     "new_feature",
     "improvement",
-    "content",
-    "ui_ux",
-    "performance",
     "bug_fix",
+    "performance",
     "security",
   ];
 
   const categories = [];
+  const releaseNotes = [];
   for (const catId of orderedCategories) {
     const set = buckets.get(catId);
     if (!set || set.size === 0) continue;
     const def = CATEGORY_DEFINITIONS[catId];
+    const items = Array.from(set);
     categories.push({
       category: def.category,
       labelAr: def.labelAr,
       labelEn: def.labelEn,
-      items: Array.from(set),
+      items,
     });
+    for (const item of items) {
+      if (releaseNotes.length < 12) {
+        releaseNotes.push(item);
+      }
+    }
   }
 
   if (categories.length === 0) {
@@ -462,6 +494,7 @@ export function analyzeGitChanges({ files = [], previousVersion = "1.0.0" }) {
       titleAr: "",
       summaryAr: "",
       categories: [],
+      releaseNotes: [],
       highlightsCount: 0,
     };
   }
@@ -469,20 +502,20 @@ export function analyzeGitChanges({ files = [], previousVersion = "1.0.0" }) {
   const releaseVersion = bumpSemanticVersion(previousVersion, categories);
   const hasNewFeature = categories.some((c) => c.category === "new_feature");
   const hasBugFix = categories.some((c) => c.category === "bug_fix");
-  const hasContent = categories.some((c) => c.category === "content");
+  const hasPerformance = categories.some((c) => c.category === "performance");
 
-  let titleAr = `تحديث وتحسينات جديدة في وصل الإسلامية (الإصدار ${releaseVersion})`;
+  let titleAr = `تحديث جديد في وصل الإسلامية (${releaseVersion})`;
   if (hasNewFeature) {
-    titleAr = `ميزات وتحديثات جديدة في وصل الإسلامية (${releaseVersion})`;
+    titleAr = `إضافات وتحسينات جديدة في وصل الإسلامية (${releaseVersion})`;
   } else if (hasBugFix && categories.length === 1) {
-    titleAr = `تحديث الاستقرار وإصلاح الأخطاء (${releaseVersion})`;
-  } else if (hasContent && categories.length === 1) {
-    titleAr = `تحديث المحتوى العلمي في وصل الإسلامية (${releaseVersion})`;
+    titleAr = `إصلاحات وتحسين الاستقرار (${releaseVersion})`;
+  } else if (hasPerformance && categories.length === 1) {
+    titleAr = `تحسينات السرعة والأداء (${releaseVersion})`;
   }
 
   const sectionSummaryNames = categories.map((c) => c.labelAr).join("، ");
   const summaryAr = sanitizePublicArabicText(
-    `تم إطلاق الإصدار ${releaseVersion} بنجاح، وتضمّن ${sectionSummaryNames} لتقديم تجربة إسلامية رقمية أكثر دقة وسلاسة للزوار.`,
+    `تم نشر الإصدار ${releaseVersion} على المنصة بعد التحقق الكامل من جاهزيته، وتضمّن ${sectionSummaryNames} لتقديم تجربة قراءة واستماع أكثر سلاسة وموثوقية.`,
     320
   );
 
@@ -492,6 +525,7 @@ export function analyzeGitChanges({ files = [], previousVersion = "1.0.0" }) {
     titleAr: sanitizePublicArabicText(titleAr, 150),
     summaryAr,
     categories,
+    releaseNotes,
     highlightsCount: categories.reduce((sum, c) => sum + c.items.length, 0),
   };
 }

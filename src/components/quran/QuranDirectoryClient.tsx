@@ -86,6 +86,19 @@ export function QuranDirectoryClient() {
                 ? "نص عثماني موثق برواية حفص عن عاصم مع التفسير الميسر والترجمة الإنجليزية وتلاوات نخبة من كبار القراء."
                 : "Authentic Uthmani script with Tafsir Al-Muyassar, Sahih International translation, and full-surah recitations from verified Qaris."}
             </p>
+            <div className="pt-1 flex flex-wrap gap-2">
+              <Link
+                href="/mushaf"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-emerald)] hover:bg-[var(--brand-emerald-strong)] px-4 py-2 text-xs sm:text-sm font-semibold text-white transition-colors shadow-sm"
+              >
+                <BookOpen className="h-4 w-4" />
+                <span>
+                  {locale === "ar"
+                    ? "تصفح المصحف المفتوح التفاعلي (٦٠٤ صفحة)"
+                    : "Open Interactive Digital Mushaf (604 Pages)"}
+                </span>
+              </Link>
+            </div>
           </div>
 
           {savedPosition ? (

@@ -44,10 +44,8 @@ const FILTER_CATEGORIES: Array<ReleaseCategoryId | "all"> = [
   "all",
   "new_feature",
   "improvement",
-  "content",
-  "ui_ux",
-  "performance",
   "bug_fix",
+  "performance",
   "security",
 ];
 

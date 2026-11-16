@@ -1,0 +1,51 @@
+name: Automated Production Release Announcement
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: release-announcement-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify-and-publish-release:
+    # Run ONLY on the production Cloudflare-connected repository (skip backup pushes)
+    if: github.repository == 'alshbili902/wslislam'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository with full history for diff & ancestry verification
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Analyze changes, verify Cloudflare + live domain, and publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RELEASE_VERIFY_VERSION_URL: https://waslislam.fun/api/version
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Supabase release secrets are not configured in GitHub Actions yet. Skipping safely without affecting deployment."
+            exit 0
+          fi
+          node scripts/verify-and-publish-release.mjs \
+            --curr "${{ github.sha }}" \
+            --prev "${{ github.event.before }}" \
+            --cf-timeout 480 \
+            --live-timeout 120

@@ -25,8 +25,9 @@ import {
 } from "@/lib/releases/schema";
 import type { PlatformRelease, ReleaseCategoryId } from "@/types/islamic";
 
-const STORAGE_KEY = "wasl_release_state_v1";
+const STORAGE_KEY = "wasl_release_state_v2";
 const NEW_VISITOR_RECENT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+const inMemorySeenReleaseIds = new Set<string>();
 
 interface VisitorReleaseState {
   lastSeenDeployedAt?: string;
@@ -34,28 +35,33 @@ interface VisitorReleaseState {
 }
 
 function readVisitorReleaseState(): VisitorReleaseState {
+  const fallbackDismissed = Array.from(inMemorySeenReleaseIds);
   if (typeof window === "undefined") {
-    return { dismissedIds: [] };
+    return { dismissedIds: fallbackDismissed };
   }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { dismissedIds: [] };
+    if (!raw) return { dismissedIds: fallbackDismissed };
     const parsed = JSON.parse(raw) as Partial<VisitorReleaseState>;
+    const storedIds = Array.isArray(parsed.dismissedIds)
+      ? parsed.dismissedIds.filter((x): x is string => typeof x === "string")
+      : [];
     return {
       lastSeenDeployedAt:
         typeof parsed.lastSeenDeployedAt === "string"
           ? parsed.lastSeenDeployedAt
           : undefined,
-      dismissedIds: Array.isArray(parsed.dismissedIds)
-        ? parsed.dismissedIds.filter((x): x is string => typeof x === "string")
-        : [],
+      dismissedIds: Array.from(new Set([...storedIds, ...fallbackDismissed])),
     };
   } catch {
-    return { dismissedIds: [] };
+    return { dismissedIds: fallbackDismissed };
   }
 }
 
 function writeVisitorReleaseState(state: VisitorReleaseState): void {
+  for (const id of state.dismissedIds) {
+    inMemorySeenReleaseIds.add(id);
+  }
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(
@@ -66,7 +72,7 @@ function writeVisitorReleaseState(state: VisitorReleaseState): void {
       })
     );
   } catch {
-    // Ignore private-mode storage errors
+    // Graceful in-memory fallback when storage is unavailable
   }
 }
 
@@ -213,8 +219,28 @@ export function ReleaseAnnouncementModal() {
     setOpen(false);
   }, [latestBaselineTs, pendingReleases]);
 
+  // Mark as seen ONLY after the announcement modal has visibly mounted & painted.
   useEffect(() => {
-    if (!open) return;
+    if (!open || pendingReleases.length === 0) return;
+
+    const rafId = window.requestAnimationFrame(() => {
+      const prev = readVisitorReleaseState();
+      const newlyShown = pendingReleases.map((r) => r.id);
+      const mergedDismissed = Array.from(
+        new Set([...prev.dismissedIds, ...newlyShown])
+      );
+      const newestTs =
+        latestBaselineTs ||
+        pendingReleases[0]?.deployedAt ||
+        prev.lastSeenDeployedAt ||
+        new Date().toISOString();
+
+      writeVisitorReleaseState({
+        lastSeenDeployedAt: newestTs,
+        dismissedIds: mergedDismissed,
+      });
+    });
+
     closeBtnRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -222,8 +248,11 @@ export function ReleaseAnnouncementModal() {
       }
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, dismissAnnouncement]);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, pendingReleases, latestBaselineTs, dismissAnnouncement]);
 
   const summary = useMemo(() => {
     if (pendingReleases.length === 0) return null;
@@ -298,8 +327,8 @@ export function ReleaseAnnouncementModal() {
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-[#dcb460]/45 bg-[#dcb460]/18 px-3 py-0.5 font-semibold text-[#f9e19b]">
                       <Sparkles className="h-3.5 w-3.5" />
                       {summary.isAggregated
-                        ? `ملخص ${summary.releaseCount} تحديثات جديدة`
-                        : "تحديث جديد في المنصة"}
+                        ? `تحديث جديد (${summary.releaseCount} إصدارات)`
+                        : "تحديث جديد"}
                     </span>
                     <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-[11px] text-white">
                       v{summary.versionLabel}
@@ -383,7 +412,7 @@ export function ReleaseAnnouncementModal() {
                   onClick={dismissAnnouncement}
                   className="flex-1 sm:flex-none rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 py-2.5 text-xs sm:text-sm font-semibold text-[var(--text-primary)] hover:border-[var(--brand-emerald)] transition-colors cursor-pointer"
                 >
-                  حسناً، لاحقاً
+                  لاحقاً
                 </button>
               </div>
 
