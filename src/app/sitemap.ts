@@ -27,6 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/quiz",
     "/calendar",
     "/resources",
+    "/updates",
     "/bookmarks",
   ].map((route) => ({
     url: `${baseUrl}${route}`,

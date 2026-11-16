@@ -629,3 +629,36 @@ export interface ListeningPreferencesState {
   favoriteLectureIds: string[];
   recentSearches: string[];
 }
+
+// ---------- Automated Release Announcements & Changelog History ----------
+export type ReleaseCategoryId =
+  | "new_feature"
+  | "improvement"
+  | "bug_fix"
+  | "performance"
+  | "security"
+  | "ui_ux"
+  | "content"
+  | "maintenance";
+
+export interface ReleaseCategoryGroup {
+  category: ReleaseCategoryId;
+  labelAr: string;
+  labelEn: string;
+  items: string[];
+}
+
+export type ReleaseStatus = "pending" | "published" | "failed" | "skipped";
+
+export interface PlatformRelease {
+  id: string;
+  commitSha: string;
+  previousCommitSha?: string | null;
+  releaseVersion: string;
+  titleAr: string;
+  summaryAr: string;
+  categories: ReleaseCategoryGroup[];
+  highlightsCount: number;
+  releaseStatus: ReleaseStatus;
+  deployedAt: string;
+}

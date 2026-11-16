@@ -34,6 +34,7 @@ export interface Dictionary {
     notifications: string;
     readingSettings: string;
     resources: string;
+    updates: string;
     bookmarks: string;
     searchPlaceholder: string;
     searchShortcut: string;
@@ -108,6 +109,7 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       notifications: "التنبيهات والتذكيرات",
       readingSettings: "إعدادات القراءة والخطوط",
       resources: "المصطلحات والمصادر",
+      updates: "سجل التحديثات",
       bookmarks: "المفضلة",
       searchPlaceholder: "ابحث في السور، الأذكار، الأحاديث، المقالات، والأسماء الحسنى...",
       searchShortcut: "بحث سريع",
@@ -182,6 +184,7 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       notifications: "Smart Reminders",
       readingSettings: "Reading Preferences",
       resources: "Glossary & Sources",
+      updates: "Platform Updates",
       bookmarks: "Bookmarks",
       searchPlaceholder: "Search surahs, adhkar, hadiths, articles, or Names of Allah...",
       searchShortcut: "Quick Search",

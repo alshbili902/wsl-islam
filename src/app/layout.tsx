@@ -12,6 +12,7 @@ import { PersistentAudioBar } from "@/components/layout/PersistentAudioBar";
 import { GlobalSearchModal } from "@/components/layout/GlobalSearchModal";
 import { ShareCardModal } from "@/components/share/ShareCardModal";
 import { NotificationDaemon } from "@/components/notifications/NotificationDaemon";
+import { ReleaseAnnouncementModal } from "@/components/releases/ReleaseAnnouncementModal";
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   variable: "--font-arabic-sans",
@@ -163,6 +164,7 @@ export default function RootLayout({
                 <PersistentAudioBar />
                 <GlobalSearchModal />
                 <ShareCardModal />
+                <ReleaseAnnouncementModal />
               </AudioProvider>
             </ReadingPreferencesProvider>
           </WaslProvider>

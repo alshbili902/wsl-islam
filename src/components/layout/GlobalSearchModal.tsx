@@ -180,6 +180,15 @@ export function GlobalSearchModal() {
         subEn: "Customize font, size, spacing & paper themes",
         href: "/reading-settings",
       },
+      {
+        id: "feat-updates",
+        keywords: ["تحديثات", "التحديثات", "إصدارات", "جديد", "changelog", "updates", "release", "releases"],
+        titleAr: "سجل التحديثات والإصدارات",
+        titleEn: "Platform Updates & Changelog",
+        subAr: "استعرض أحدث الميزات والتحسينات الموثقة في المنصة",
+        subEn: "Browse verified platform release history",
+        href: "/updates",
+      },
     ];
 
     for (const f of featureShortcuts) {

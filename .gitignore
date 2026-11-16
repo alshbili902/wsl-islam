@@ -71,3 +71,7 @@ coverage/
 *.keystore
 credentials*.json
 service-account*.json
+
+# release automation local logs
+/.release-logs/
+.release-pending.json

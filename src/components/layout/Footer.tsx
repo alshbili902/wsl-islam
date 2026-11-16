@@ -33,6 +33,7 @@ export function Footer() {
     { href: "/quiz", label: t.nav.quiz },
     { href: "/calendar", label: t.nav.calendar },
     { href: "/resources", label: t.nav.resources },
+    { href: "/updates", label: t.nav.updates },
   ];
 
   const officialLinks = [

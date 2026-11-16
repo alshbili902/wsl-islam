@@ -95,6 +95,7 @@ export function Header() {
     { href: "/quiz", label: t.nav.quiz },
     { href: "/calendar", label: t.nav.calendar },
     { href: "/resources", label: t.nav.resources },
+    { href: "/updates", label: t.nav.updates },
   ];
 
   const isQuranGroupActive =
@@ -628,6 +629,11 @@ export function Header() {
                   href="/resources"
                   label={t.nav.resources}
                   active={pathname.startsWith("/resources")}
+                />
+                <MobileLink
+                  href="/updates"
+                  label={t.nav.updates}
+                  active={pathname.startsWith("/updates")}
                 />
               </div>
             </div>
