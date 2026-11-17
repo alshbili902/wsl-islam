@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { MushafClient } from "@/components/mushaf/MushafClient";
 import { fetchMushafPage } from "@/lib/api/mushaf";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: "المصحف الشريف — وضع القراءة | Digital Mushaf Reading",
+export const metadata: Metadata = buildPageMetadata({
+  title: "المصحف الشريف — القراءة التفاعلية",
   description:
     "تصفح المصحف الشريف بصفحاته الـ ٦٠٤ بالرسم العثماني الموثق مع تقسيم الأجزاء والأحزاب وعلامات السجود والربط المباشر بالتفسير والتلاوة.",
-};
+  path: "/mushaf",
+});
 
 export default async function MushafPage({
   searchParams,

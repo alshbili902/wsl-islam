@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import { HomeExperience } from "@/components/home/HomeExperience";
 import { getDailyVerse } from "@/data/daily-verses";
 import { DAILY_HADITHS } from "@/data/hadith-books";
 import { getArticles, getRadioStations } from "@/lib/data/repository";
+import { buildPageMetadata } from "@/lib/seo/config";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "الرئيسية",
+  absoluteTitle: "وصل الإسلامية | Wasl Islamic — القرآن والسنة والأذكار ومواقيت الصلاة",
+  description:
+    "منصة وصل الإسلامية: تجربة رقمية إسلامية موثوقة للقرآن الكريم تلاوةً وتفسيراً، ومواقيت الصلاة الدقيقة، والأذكار، ومكتبة الحديث الشريف، والإذاعات الإسلامية، والزكاة، والصدقة والتبرع.",
+  path: "/",
+});
 
 export default async function HomePage() {
   const now = new Date();

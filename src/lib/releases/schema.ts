@@ -15,12 +15,19 @@ export interface ReleaseCategoryMeta {
 }
 
 export const RELEASE_CATEGORY_META: Record<ReleaseCategoryId, ReleaseCategoryMeta> = {
-  new_feature: {
-    id: "new_feature",
-    labelAr: "إضافات جديدة",
-    labelEn: "New Features",
+  new_update: {
+    id: "new_update",
+    labelAr: "تحديثات جديدة",
+    labelEn: "New Updates",
     badgeClass:
       "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  },
+  new_feature: {
+    id: "new_feature",
+    labelAr: "إضافات ومميزات جديدة",
+    labelEn: "New Features & Additions",
+    badgeClass:
+      "bg-emerald-600/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/35",
   },
   improvement: {
     id: "improvement",
@@ -31,26 +38,33 @@ export const RELEASE_CATEGORY_META: Record<ReleaseCategoryId, ReleaseCategoryMet
   },
   bug_fix: {
     id: "bug_fix",
-    labelAr: "إصلاحات",
-    labelEn: "Bug Fixes",
+    labelAr: "إصلاحات المشاكل والأخطاء",
+    labelEn: "Bug & Issue Fixes",
     badgeClass:
       "bg-sky-500/12 text-sky-700 dark:text-sky-300 border-sky-500/30",
   },
-  performance: {
-    id: "performance",
-    labelAr: "تحسينات الأداء",
-    labelEn: "Performance",
-    badgeClass:
-      "bg-teal-500/12 text-teal-700 dark:text-teal-300 border-teal-500/30",
-  },
-  security: {
-    id: "security",
-    labelAr: "تحسينات الأمان",
-    labelEn: "Security",
+  performance_security: {
+    id: "performance_security",
+    labelAr: "تحسينات الأداء والأمان",
+    labelEn: "Performance & Security",
     badgeClass:
       "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
   },
-  // Legacy aliases map gracefully into "improvement" when rendering historical rows
+  // Legacy aliases map gracefully into the 5 canonical categories
+  performance: {
+    id: "performance_security",
+    labelAr: "تحسينات الأداء والأمان",
+    labelEn: "Performance & Security",
+    badgeClass:
+      "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+  },
+  security: {
+    id: "performance_security",
+    labelAr: "تحسينات الأداء والأمان",
+    labelEn: "Performance & Security",
+    badgeClass:
+      "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+  },
   ui_ux: {
     id: "improvement",
     labelAr: "تحسينات",
@@ -59,11 +73,11 @@ export const RELEASE_CATEGORY_META: Record<ReleaseCategoryId, ReleaseCategoryMet
       "bg-amber-500/12 text-amber-800 dark:text-amber-300 border-amber-500/30",
   },
   content: {
-    id: "improvement",
-    labelAr: "تحسينات",
-    labelEn: "Improvements",
+    id: "new_update",
+    labelAr: "تحديثات جديدة",
+    labelEn: "New Updates",
     badgeClass:
-      "bg-amber-500/12 text-amber-800 dark:text-amber-300 border-amber-500/30",
+      "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
   },
   maintenance: {
     id: "maintenance",
@@ -75,11 +89,11 @@ export const RELEASE_CATEGORY_META: Record<ReleaseCategoryId, ReleaseCategoryMet
 };
 
 export const PUBLIC_RELEASE_CATEGORIES: ReleaseCategoryId[] = [
+  "new_update",
   "new_feature",
   "improvement",
   "bug_fix",
-  "performance",
-  "security",
+  "performance_security",
 ];
 
 export const VALID_RELEASE_CATEGORIES = new Set<ReleaseCategoryId>(
@@ -98,10 +112,6 @@ const SENSITIVE_PATTERNS: RegExp[] = [
   /<[^>]+>/g,
 ];
 
-/**
- * Strips any accidental code paths, environment variables, tokens, or HTML tags
- * before storing or rendering release copy for public visitors.
- */
 export function sanitizeReleaseText(input: unknown, maxLength = 360): string {
   if (typeof input !== "string") return "";
   let cleaned = input.replace(/[\u0000-\u001F\u007F]/g, " ").trim();
@@ -115,8 +125,21 @@ export function sanitizeReleaseText(input: unknown, maxLength = 360): string {
   return cleaned;
 }
 
+export function sanitizeInternalHref(input: unknown): string | undefined {
+  if (typeof input !== "string") return undefined;
+  const trimmed = input.trim();
+  if (/^\/[a-z0-9/_-]*$/i.test(trimmed) && !trimmed.startsWith("//")) {
+    return trimmed;
+  }
+  return undefined;
+}
+
 function canonicalizeCategory(catId: ReleaseCategoryId): ReleaseCategoryId {
-  if (catId === "ui_ux" || catId === "content") return "improvement";
+  if (catId === "performance" || catId === "security") {
+    return "performance_security";
+  }
+  if (catId === "ui_ux") return "improvement";
+  if (catId === "content") return "new_update";
   return catId;
 }
 
@@ -152,7 +175,6 @@ export function normalizeReleaseRow(raw: unknown): PlatformRelease | null {
     row.release_status ?? row.releaseStatus ?? ""
   ) as ReleaseStatus;
 
-  // Enforce strict published + verified gating whenever verification fields exist
   const hasIsPublishedField =
     "is_published" in row || "isPublished" in row;
   const isPublished = hasIsPublishedField
@@ -179,6 +201,8 @@ export function normalizeReleaseRow(raw: unknown): PlatformRelease | null {
 
   const rawCategories = Array.isArray(row.categories) ? row.categories : [];
   const mergedBuckets = new Map<ReleaseCategoryId, Set<string>>();
+  const bucketHref = new Map<ReleaseCategoryId, string>();
+  let primaryRelatedHref: string | undefined;
 
   for (const catEntry of rawCategories) {
     if (!catEntry || typeof catEntry !== "object") continue;
@@ -187,6 +211,12 @@ export function normalizeReleaseRow(raw: unknown): PlatformRelease | null {
     if (!VALID_RELEASE_CATEGORIES.has(rawCatId)) continue;
     const catId = canonicalizeCategory(rawCatId);
     if (catId === "maintenance") continue;
+
+    const validHref = sanitizeInternalHref(catObj.relatedHref);
+    if (validHref) {
+      if (!bucketHref.has(catId)) bucketHref.set(catId, validHref);
+      if (!primaryRelatedHref) primaryRelatedHref = validHref;
+    }
 
     const itemsRaw = Array.isArray(catObj.items) ? catObj.items : [];
     if (!mergedBuckets.has(catId)) {
@@ -211,6 +241,7 @@ export function normalizeReleaseRow(raw: unknown): PlatformRelease | null {
       labelAr: meta.labelAr,
       labelEn: meta.labelEn,
       items: Array.from(itemsSet),
+      ...(bucketHref.get(catId) ? { relatedHref: bucketHref.get(catId) } : {}),
     });
   }
 
@@ -257,6 +288,10 @@ export function normalizeReleaseRow(raw: unknown): PlatformRelease | null {
     summaryAr,
     releaseNotes,
     categories,
+    relatedHref:
+      sanitizeInternalHref(row.related_href ?? row.relatedHref) ??
+      primaryRelatedHref ??
+      null,
     highlightsCount: categories.reduce((sum, g) => sum + g.items.length, 0),
     releaseStatus: "published",
     verificationStatus: "verified",
@@ -285,6 +320,7 @@ export function buildAggregatedReleaseSummary(releases: PlatformRelease[]): {
   summaryAr: string;
   deployedAt: string;
   publishedAt: string;
+  relatedHref?: string | null;
   categories: ReleaseCategoryGroup[];
 } {
   if (releases.length === 1) {
@@ -297,21 +333,28 @@ export function buildAggregatedReleaseSummary(releases: PlatformRelease[]): {
       summaryAr: single.summaryAr,
       deployedAt: single.deployedAt,
       publishedAt: single.publishedAt,
+      relatedHref: single.relatedHref ?? null,
       categories: single.categories,
     };
   }
 
   const sortedNewestFirst = [...releases].sort(
-    (a, b) => Date.parse(b.publishedAt || b.deployedAt) - Date.parse(a.publishedAt || a.deployedAt)
+    (a, b) =>
+      Date.parse(b.publishedAt || b.deployedAt) -
+      Date.parse(a.publishedAt || a.deployedAt)
   );
   const newest = sortedNewestFirst[0];
   const oldest = sortedNewestFirst[sortedNewestFirst.length - 1];
 
   const grouped = new Map<ReleaseCategoryId, Set<string>>();
+  const hrefMap = new Map<ReleaseCategoryId, string>();
   for (const rel of sortedNewestFirst) {
     for (const cat of rel.categories) {
       const catId = canonicalizeCategory(cat.category);
       if (catId === "maintenance") continue;
+      if (cat.relatedHref && !hrefMap.has(catId)) {
+        hrefMap.set(catId, cat.relatedHref);
+      }
       if (!grouped.has(catId)) {
         grouped.set(catId, new Set());
       }
@@ -334,6 +377,7 @@ export function buildAggregatedReleaseSummary(releases: PlatformRelease[]): {
       labelAr: meta.labelAr,
       labelEn: meta.labelEn,
       items: Array.from(itemsSet),
+      ...(hrefMap.get(catId) ? { relatedHref: hrefMap.get(catId) } : {}),
     });
   }
 
@@ -342,9 +386,10 @@ export function buildAggregatedReleaseSummary(releases: PlatformRelease[]): {
     releaseCount: releases.length,
     versionLabel: `${oldest.releaseVersion} ← ${newest.releaseVersion}`,
     titleAr: `ملخص ${releases.length} تحديثات جديدة في وصل الإسلامية`,
-    summaryAr: `تم نشر ${releases.length} إصدارات موثقة منذ زيارتك الأخيرة، شملت تحسينات وإضافات متنوعة لخدمتك وتيسير تصفحك للمنصة.`,
+    summaryAr: `تم نشر ${releases.length} إصدارات موثقة منذ زيارتك الأخيرة، شملت إضافات وتحسينات متنوعة لخدمتك وتيسير تصفحك للمنصة.`,
     deployedAt: newest.deployedAt,
     publishedAt: newest.publishedAt,
+    relatedHref: newest.relatedHref ?? null,
     categories: mergedCategories,
   };
 }

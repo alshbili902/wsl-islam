@@ -632,9 +632,11 @@ export interface ListeningPreferencesState {
 
 // ---------- Automated Release Announcements & Changelog History ----------
 export type ReleaseCategoryId =
+  | "new_update"
   | "new_feature"
   | "improvement"
   | "bug_fix"
+  | "performance_security"
   | "performance"
   | "security"
   | "ui_ux"
@@ -646,6 +648,7 @@ export interface ReleaseCategoryGroup {
   labelAr: string;
   labelEn: string;
   items: string[];
+  relatedHref?: string;
 }
 
 export type ReleaseStatus =
@@ -680,6 +683,7 @@ export interface PlatformRelease {
   summaryAr: string;
   releaseNotes: string[];
   categories: ReleaseCategoryGroup[];
+  relatedHref?: string | null;
   highlightsCount: number;
   releaseStatus: ReleaseStatus;
   verificationStatus: ReleaseVerificationStatus;

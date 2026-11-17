@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SurahReaderClient } from "@/components/quran/SurahReaderClient";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { SURAHS } from "@/data/surahs";
 import { fetchSurahDetail } from "@/lib/api/quran";
+import { buildBreadcrumbJsonLd, buildPageMetadata } from "@/lib/seo/config";
 
 export async function generateMetadata({
   params,
@@ -16,11 +18,11 @@ export async function generateMetadata({
   if (!surah) {
     return { title: "القرآن الكريم" };
   }
-  return {
+  return buildPageMetadata({
     title: `${surah.nameAr} (${surah.englishName}) — قراءة واستماع`,
     description: `اقرأ ${surah.nameAr} كاملة بالرسم العثماني مع التفسير الميسر والترجمة واستمع لتلاوتها بأصوات كبار القراء.`,
-    alternates: { canonical: `/quran/${surah.number}` },
-  };
+    path: `/quran/${surah.number}`,
+  });
 }
 
 export default async function SurahPage({
@@ -59,5 +61,20 @@ export default async function SurahPage({
     );
   }
 
-  return <SurahReaderClient initialData={data} />;
+  const surahMeta = SURAHS.find((s) => s.number === num);
+
+  return (
+    <>
+      {surahMeta ? (
+        <JsonLd
+          data={buildBreadcrumbJsonLd([
+            { name: "الرئيسية", path: "/" },
+            { name: "القرآن الكريم", path: "/quran" },
+            { name: surahMeta.nameAr, path: `/quran/${surahMeta.number}` },
+          ])}
+        />
+      ) : null}
+      <SurahReaderClient initialData={data} />
+    </>
+  );
 }

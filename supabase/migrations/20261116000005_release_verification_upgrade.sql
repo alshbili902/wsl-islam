@@ -80,3 +80,17 @@ DROP POLICY IF EXISTS "Public read published platform_releases" ON public.platfo
 CREATE POLICY "Public read published platform_releases"
   ON public.platform_releases FOR SELECT
   USING (is_published = TRUE AND verification_status = 'verified');
+
+-- Anonymous & browser-safe dismissal tracking (no login required, service-role API managed)
+CREATE TABLE IF NOT EXISTS public.platform_release_dismissals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visitor_id TEXT NOT NULL,
+  release_id UUID NOT NULL REFERENCES public.platform_releases(id) ON DELETE CASCADE,
+  dismissed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (visitor_id, release_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_platform_release_dismissals_visitor
+  ON public.platform_release_dismissals (visitor_id, dismissed_at DESC);
+
+ALTER TABLE public.platform_release_dismissals ENABLE ROW LEVEL SECURITY;

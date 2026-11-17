@@ -13,6 +13,13 @@ import { GlobalSearchModal } from "@/components/layout/GlobalSearchModal";
 import { LazyShareCardModal } from "@/components/share/LazyShareCardModal";
 import { NotificationDaemon } from "@/components/notifications/NotificationDaemon";
 import { ReleaseAnnouncementModal } from "@/components/releases/ReleaseAnnouncementModal";
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
+  DEFAULT_OG_IMAGE_PATH,
+  DEFAULT_SITE_NAME,
+  DEFAULT_TWITTER_HANDLE,
+  getCanonicalSiteUrl,
+} from "@/lib/seo/config";
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   variable: "--font-arabic-sans",
@@ -35,7 +42,10 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const siteUrl = getCanonicalSiteUrl();
+const googleVerification = (
+  process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || ""
+).trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -58,26 +68,35 @@ export const metadata: Metadata = {
     "حساب الزكاة",
   ],
   authors: [{ name: "Wasl Islamic" }],
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
     locale: "ar_SA",
     alternateLocale: ["en_US"],
-    siteName: "وصل الإسلامية — Wasl Islamic",
-    title: "وصل الإسلامية | Wasl Islamic",
+    siteName: DEFAULT_SITE_NAME,
+    title: "وصل الإسلامية | Wasl Islamic — القرآن والسنة والأذكار ومواقيت الصلاة",
     description:
       "منصة إسلامية متكاملة موثقة المصادر للقرآن الكريم ومواقيت الصلاة والأذكار والحديث والإذاعات الإسلامية.",
-    url: siteUrl,
+    url: `${siteUrl}/`,
+    images: [
+      {
+        url: `${siteUrl}${DEFAULT_OG_IMAGE_PATH}`,
+        width: 512,
+        height: 512,
+        alt: DEFAULT_SITE_NAME,
+      },
+    ],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "وصل الإسلامية | Wasl Islamic",
     description:
       "القرآن الكريم، مواقيت الصلاة، الأذكار، الحديث الشريف، والإذاعات الإسلامية المباشرة.",
-    creator: "@waslofficiall",
+    images: [`${siteUrl}${DEFAULT_OG_IMAGE_PATH}`],
+    creator: DEFAULT_TWITTER_HANDLE,
   },
+  ...(googleVerification
+    ? { verification: { google: googleVerification } }
+    : {}),
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -129,12 +148,33 @@ export default function RootLayout({
 }>) {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "وصل الإسلامية — Wasl Islamic",
-    url: siteUrl,
-    inLanguage: ["ar", "en"],
-    description:
-      "منصة إسلامية موثوقة للقرآن الكريم ومواقيت الصلاة والأذكار والحديث والإذاعات الإسلامية.",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        name: "وصل الإسلامية — Wasl Islamic",
+        alternateName: "Wasl Islamic",
+        url: `${siteUrl}/`,
+        inLanguage: ["ar", "en"],
+        description:
+          "منصة إسلامية موثوقة للقرآن الكريم ومواقيت الصلاة والأذكار والحديث والإذاعات الإسلامية.",
+        publisher: {
+          "@id": `${siteUrl}/#organization`,
+        },
+      },
+      {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        name: "وصل الإسلامية — Wasl Islamic",
+        url: `${siteUrl}/`,
+        logo: {
+          "@type": "ImageObject",
+          url: `${siteUrl}${DEFAULT_OG_IMAGE_PATH}`,
+          width: 512,
+          height: 512,
+        },
+      },
+    ],
   };
 
   return (
@@ -146,10 +186,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: PRE_HYDRATION_SCRIPT }} />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLd data={jsonLd} />
       </head>
       <body className="min-h-full flex flex-col">
         <MotionWrapper>

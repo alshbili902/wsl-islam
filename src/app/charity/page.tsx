@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
 import { CharityDirectoryClient } from "@/components/charity/CharityDirectoryClient";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildBreadcrumbJsonLd, buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: "الصدقة والتبرع — دليل منصات التبرع السعودية الرسمية | وصل الإسلامية",
+export const metadata: Metadata = buildPageMetadata({
+  title: "الصدقة والتبرع — دليل منصات التبرع السعودية الرسمية",
   description:
     "دليل تعريفي آمن يجمع منصات التبرع السعودية الرسمية (إحسان، المنصة الوطنية للتبرعات تبرع، جود الإسكان، وقفي، ساهم) مع روابط مباشرة لمواقعها المعتمدة.",
-  alternates: { canonical: "/charity" },
-  openGraph: {
-    title: "الصدقة والتبرع — وصل الإسلامية",
-    description:
-      "أبواب الخير كثيرة، تصفّح أبرز منصات التبرع السعودية الرسمية وانتقل مباشرة إلى مواقعها المعتمدة بأمان.",
-  },
-};
+  path: "/charity",
+});
 
 export default function CharityPage() {
-  return <CharityDirectoryClient />;
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "الصدقة والتبرع", path: "/charity" },
+        ])}
+      />
+      <CharityDirectoryClient />
+    </>
+  );
 }

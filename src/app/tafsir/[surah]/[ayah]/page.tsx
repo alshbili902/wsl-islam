@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TafsirClient } from "@/components/tafsir/TafsirClient";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { SURAHS } from "@/data/surahs";
 import { fetchTafsirForVerse } from "@/lib/api/tafsir";
+import { buildBreadcrumbJsonLd, buildPageMetadata } from "@/lib/seo/config";
 
 export async function generateMetadata({
   params,
@@ -18,10 +20,11 @@ export async function generateMetadata({
     return { title: "تفسير القرآن الكريم" };
   }
 
-  return {
-    title: `تفسير سورة ${meta.nameAr} الآية ${ayahNum} | Tafsir ${meta.englishName} ${surahNum}:${ayahNum}`,
+  return buildPageMetadata({
+    title: `تفسير سورة ${meta.nameAr} الآية ${ayahNum} — Tafsir ${meta.englishName} ${surahNum}:${ayahNum}`,
     description: `تفسير الآية ${ayahNum} من سورة ${meta.nameAr} من أمهات كتب التفسير الموثقة على منصة وصل الإسلامية.`,
-  };
+    path: `/tafsir/${surahNum}/${ayahNum}`,
+  });
 }
 
 export default async function TafsirVerseRoute({
@@ -52,5 +55,19 @@ export default async function TafsirVerseRoute({
       ? sp.tab
       : "tafsir";
 
-  return <TafsirClient initialData={initialData} initialTab={tab} />;
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "التفسير والتدبر", path: "/tafsir" },
+          {
+            name: `${meta.nameAr} (${surahNum}:${ayahNum})`,
+            path: `/tafsir/${surahNum}/${ayahNum}`,
+          },
+        ])}
+      />
+      <TafsirClient initialData={initialData} initialTab={tab} />
+    </>
+  );
 }

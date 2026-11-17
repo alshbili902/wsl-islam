@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { KhatmahClient } from "@/components/khatmah/KhatmahClient";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: "مخطط ختمة القرآن | Quran Khatmah Planner",
+export const metadata: Metadata = buildPageMetadata({
+  title: "مخطط ختمة القرآن",
   description:
     "خطط ختمة القرآن الكريم (٧ أيام، ١٥ يوماً، ٣٠ يوماً، ٦٠ يوماً، أو مخصصة) بحساب دقيق لصفحات المصحف الـ ٦٠٤ وربط مباشر بصفحة القراءة.",
-};
+  path: "/khatmah",
+});
 
 export default async function KhatmahPage({
   searchParams,

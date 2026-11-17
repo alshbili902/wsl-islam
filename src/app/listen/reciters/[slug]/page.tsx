@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReciterProfileClient } from "@/components/listen/ReciterProfileClient";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { getCatalogReciterBySlug } from "@/lib/audio/catalog";
+import { buildBreadcrumbJsonLd, buildPageMetadata } from "@/lib/seo/config";
 
 export const revalidate = 3600;
 
@@ -14,14 +16,14 @@ export async function generateMetadata({
   const reciter = await getCatalogReciterBySlug(slug);
   if (!reciter) {
     return {
-      title: "القارئ غير موجود — مركز الاستماع | وصل الإسلامية",
+      title: "القارئ غير موجود — مركز الاستماع",
     };
   }
-  return {
-    title: `${reciter.nameAr} — تلاوات القرآن الكريم | وصل الإسلامية`,
+  return buildPageMetadata({
+    title: `${reciter.nameAr} — تلاوات القرآن الكريم`,
     description: `استمع إلى تلاوات القارئ ${reciter.nameAr} (${reciter.nameEn}) بعدد ${reciter.moshafs.length} مصحف/رواية عبر مركز الاستماع في وصل الإسلامية.`,
-    alternates: { canonical: `/listen/reciters/${reciter.slug}` },
-  };
+    path: `/listen/reciters/${reciter.slug}`,
+  });
 }
 
 export default async function ReciterProfilePage({
@@ -34,5 +36,17 @@ export default async function ReciterProfilePage({
   if (!reciter) {
     notFound();
   }
-  return <ReciterProfileClient reciter={reciter} />;
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "مركز الاستماع", path: "/listen" },
+          { name: "القراء", path: "/listen/reciters" },
+          { name: reciter.nameAr, path: `/listen/reciters/${reciter.slug}` },
+        ])}
+      />
+      <ReciterProfileClient reciter={reciter} />
+    </>
+  );
 }

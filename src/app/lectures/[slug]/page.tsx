@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LectureDetailClient } from "@/components/lectures/LectureDetailClient";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { fetchLectureBySlug, fetchVerifiedLectures } from "@/lib/api/lectures";
+import { buildBreadcrumbJsonLd, buildPageMetadata } from "@/lib/seo/config";
 
 export const revalidate = 3600;
 
@@ -15,11 +17,11 @@ export async function generateMetadata({
   if (!lecture) {
     return { title: "الدرس غير موجود" };
   }
-  return {
+  return buildPageMetadata({
     title: `${lecture.titleAr} — ${lecture.speakerAr}`,
     description: lecture.descriptionAr,
-    alternates: { canonical: `/lectures/${lecture.slug}` },
-  };
+    path: `/lectures/${lecture.slug}`,
+  });
 }
 
 export default async function LectureDetailPage({
@@ -39,5 +41,16 @@ export default async function LectureDetailPage({
   });
   const related = allSameCategory.filter((item) => item.id !== lecture.id).slice(0, 3);
 
-  return <LectureDetailClient lecture={lecture} related={related} />;
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "الرئيسية", path: "/" },
+          { name: "المحاضرات والدروس", path: "/lectures" },
+          { name: lecture.titleAr, path: `/lectures/${lecture.slug}` },
+        ])}
+      />
+      <LectureDetailClient lecture={lecture} related={related} />
+    </>
+  );
 }

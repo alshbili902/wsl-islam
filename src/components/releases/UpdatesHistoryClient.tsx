@@ -2,17 +2,15 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  BookOpen,
+  BellRing,
   Calendar,
   CheckCircle2,
   GitCommitHorizontal,
   History,
-  Palette,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   Wrench,
-  Zap,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { useWasl } from "@/components/providers/WaslProvider";
@@ -21,20 +19,20 @@ import type { PlatformRelease, ReleaseCategoryId } from "@/types/islamic";
 
 function getCategoryIcon(category: ReleaseCategoryId) {
   switch (category) {
+    case "new_update":
+    case "content":
+      return <BellRing className="h-3.5 w-3.5" />;
     case "new_feature":
       return <Sparkles className="h-3.5 w-3.5" />;
     case "improvement":
+    case "ui_ux":
       return <TrendingUp className="h-3.5 w-3.5" />;
     case "bug_fix":
       return <Wrench className="h-3.5 w-3.5" />;
+    case "performance_security":
     case "performance":
-      return <Zap className="h-3.5 w-3.5" />;
     case "security":
       return <ShieldCheck className="h-3.5 w-3.5" />;
-    case "ui_ux":
-      return <Palette className="h-3.5 w-3.5" />;
-    case "content":
-      return <BookOpen className="h-3.5 w-3.5" />;
     default:
       return <Sparkles className="h-3.5 w-3.5" />;
   }
@@ -42,11 +40,11 @@ function getCategoryIcon(category: ReleaseCategoryId) {
 
 const FILTER_CATEGORIES: Array<ReleaseCategoryId | "all"> = [
   "all",
+  "new_update",
   "new_feature",
   "improvement",
   "bug_fix",
-  "performance",
-  "security",
+  "performance_security",
 ];
 
 export function UpdatesHistoryClient({

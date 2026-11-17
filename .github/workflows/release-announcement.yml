@@ -21,6 +21,16 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      - name: Validate required Supabase release secrets
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in GitHub Actions Secrets for alshbili902/wslislam. Add both secrets so verified updates can be published automatically."
+            exit 1
+          fi
+
       - name: Checkout repository with full history for diff & ancestry verification
         uses: actions/checkout@v4
         with:
@@ -40,10 +50,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RELEASE_VERIFY_VERSION_URL: https://waslislam.fun/api/version
         run: |
-          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "Supabase release secrets are not configured in GitHub Actions yet. Skipping safely without affecting deployment."
-            exit 0
-          fi
           node scripts/verify-and-publish-release.mjs \
             --curr "${{ github.sha }}" \
             --prev "${{ github.event.before }}" \

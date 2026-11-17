@@ -13,6 +13,24 @@ function buildSupabaseHeaders(serviceKey, prefer = "return=representation") {
   };
 }
 
+async function fetchWithRetry(fetchImpl, url, init = {}, attempts = 3) {
+  let lastErr;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fetchImpl(url, {
+        ...init,
+        signal: init.signal ?? AbortSignal.timeout(15000),
+      });
+    } catch (err) {
+      lastErr = err;
+      if (i + 1 < attempts) {
+        await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export function parseCloudflareSummaryIds(summary = "") {
   const buildMatch = String(summary).match(/Build ID:\s*\[?([a-f0-9-]{8,64})\]?/i);
   const versionMatch = String(summary).match(/Version ID:\s*([a-f0-9-]{8,64})/i);
@@ -24,18 +42,53 @@ export function parseCloudflareSummaryIds(summary = "") {
   };
 }
 
+function isSchemaColumnMissingError(errText = "") {
+  return /42703|PGRST204|Could not find the .* column|column .* does not exist/i.test(
+    String(errText)
+  );
+}
+
+function toLegacyReleasePayload(record) {
+  const omit = new Set([
+    "release_notes",
+    "deployment_id",
+    "deployment_status",
+    "verification_status",
+    "verification_error",
+    "published_at",
+    "is_published",
+  ]);
+  return Object.fromEntries(
+    Object.entries(record).filter(([key]) => !omit.has(key))
+  );
+}
+
 export async function fetchLatestVerifiedRelease({
   supabaseUrl,
   serviceKey,
   fetchImpl = fetch,
 }) {
-  const res = await fetchImpl(
+  const res = await fetchWithRetry(
+    fetchImpl,
     `${supabaseUrl}/rest/v1/platform_releases?is_published=eq.true&verification_status=eq.verified&select=id,commit_sha,release_version,published_at,created_at&order=published_at.desc&limit=1`,
     { headers: buildSupabaseHeaders(serviceKey, "") }
   );
-  if (!res.ok) return null;
-  const rows = await res.json();
-  return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  if (res.ok) {
+    const rows = await res.json();
+    return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  }
+  const errBody = await res.text();
+  if (isSchemaColumnMissingError(errBody)) {
+    const legacyRes = await fetchWithRetry(
+      fetchImpl,
+      `${supabaseUrl}/rest/v1/platform_releases?release_status=eq.published&select=id,commit_sha,release_version,deployed_at,created_at&order=deployed_at.desc&limit=1`,
+      { headers: buildSupabaseHeaders(serviceKey, "") }
+    );
+    if (!legacyRes.ok) return null;
+    const rows = await legacyRes.json();
+    return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  }
+  return null;
 }
 
 export async function fetchCandidateByCommit({
@@ -44,13 +97,33 @@ export async function fetchCandidateByCommit({
   commitSha,
   fetchImpl = fetch,
 }) {
-  const res = await fetchImpl(
+  const res = await fetchWithRetry(
+    fetchImpl,
     `${supabaseUrl}/rest/v1/platform_releases?commit_sha=eq.${encodeURIComponent(commitSha)}&select=id,commit_sha,release_version,is_published,verification_status,release_status,deployment_status,created_at&limit=1`,
     { headers: buildSupabaseHeaders(serviceKey, "") }
   );
-  if (!res.ok) return null;
-  const rows = await res.json();
-  return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  if (res.ok) {
+    const rows = await res.json();
+    return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  }
+  const errBody = await res.text();
+  if (isSchemaColumnMissingError(errBody)) {
+    const legacyRes = await fetchWithRetry(
+      fetchImpl,
+      `${supabaseUrl}/rest/v1/platform_releases?commit_sha=eq.${encodeURIComponent(commitSha)}&select=id,commit_sha,release_version,release_status,created_at&limit=1`,
+      { headers: buildSupabaseHeaders(serviceKey, "") }
+    );
+    if (!legacyRes.ok) return null;
+    const rows = await legacyRes.json();
+    if (!Array.isArray(rows) || !rows[0]) return null;
+    const row = rows[0];
+    return {
+      ...row,
+      is_published: row.release_status === "published",
+      verification_status: row.release_status === "published" ? "verified" : "pending",
+    };
+  }
+  return null;
 }
 
 /**
@@ -123,7 +196,7 @@ export async function prepareAndStoreCandidateRelease({
   };
 
   if (existing) {
-    const patchRes = await fetchImpl(
+    let patchRes = await fetchImpl(
       `${supabaseUrl}/rest/v1/platform_releases?id=eq.${encodeURIComponent(existing.id)}`,
       {
         method: "PATCH",
@@ -131,6 +204,22 @@ export async function prepareAndStoreCandidateRelease({
         body: JSON.stringify(candidateRecord),
       }
     );
+    if (!patchRes.ok) {
+      const errText = await patchRes.text();
+      if (isSchemaColumnMissingError(errText)) {
+        console.warn("[Warning] Supabase migration 20261116000005 not yet applied; using legacy candidate columns cleanly.");
+        patchRes = await fetchImpl(
+          `${supabaseUrl}/rest/v1/platform_releases?id=eq.${encodeURIComponent(existing.id)}`,
+          {
+            method: "PATCH",
+            headers: buildSupabaseHeaders(serviceKey),
+            body: JSON.stringify(toLegacyReleasePayload(candidateRecord)),
+          }
+        );
+      } else {
+        throw new Error(`Failed updating pending candidate (${patchRes.status}): ${errText}`);
+      }
+    }
     if (!patchRes.ok) {
       throw new Error(`Failed updating pending candidate (${patchRes.status}): ${await patchRes.text()}`);
     }
@@ -142,11 +231,24 @@ export async function prepareAndStoreCandidateRelease({
     };
   }
 
-  const insertRes = await fetchImpl(`${supabaseUrl}/rest/v1/platform_releases`, {
+  let insertRes = await fetchImpl(`${supabaseUrl}/rest/v1/platform_releases`, {
     method: "POST",
     headers: buildSupabaseHeaders(serviceKey),
     body: JSON.stringify(candidateRecord),
   });
+  if (!insertRes.ok) {
+    const errText = await insertRes.text();
+    if (isSchemaColumnMissingError(errText)) {
+      console.warn("[Warning] Supabase migration 20261116000005 not yet applied; using legacy candidate columns cleanly.");
+      insertRes = await fetchImpl(`${supabaseUrl}/rest/v1/platform_releases`, {
+        method: "POST",
+        headers: buildSupabaseHeaders(serviceKey),
+        body: JSON.stringify(toLegacyReleasePayload(candidateRecord)),
+      });
+    } else {
+      throw new Error(`Failed inserting pending candidate (${insertRes.status}): ${errText}`);
+    }
+  }
   if (!insertRes.ok) {
     throw new Error(`Failed inserting pending candidate (${insertRes.status}): ${await insertRes.text()}`);
   }
@@ -472,11 +574,26 @@ export async function finalizeCandidateStatus({
     ? `${supabaseUrl}/rest/v1/platform_releases?commit_sha=eq.${encodeURIComponent(commitSha)}&is_published=eq.false`
     : `${supabaseUrl}/rest/v1/platform_releases?commit_sha=eq.${encodeURIComponent(commitSha)}`;
 
-  const res = await fetchImpl(url, {
+  let res = await fetchImpl(url, {
     method: "PATCH",
     headers: buildSupabaseHeaders(serviceKey),
     body: JSON.stringify(patch),
   });
+  if (!res.ok) {
+    const errText = await res.text();
+    if (isSchemaColumnMissingError(errText)) {
+      const legacyUrl = verified
+        ? `${supabaseUrl}/rest/v1/platform_releases?commit_sha=eq.${encodeURIComponent(commitSha)}&release_status=eq.pending`
+        : `${supabaseUrl}/rest/v1/platform_releases?commit_sha=eq.${encodeURIComponent(commitSha)}`;
+      res = await fetchImpl(legacyUrl, {
+        method: "PATCH",
+        headers: buildSupabaseHeaders(serviceKey),
+        body: JSON.stringify(toLegacyReleasePayload({ ...patch, release_status: superseded ? "skipped" : patch.release_status })),
+      });
+    } else {
+      throw new Error(`Failed finalizing candidate (${res.status}): ${errText}`);
+    }
+  }
   if (!res.ok) {
     throw new Error(`Failed finalizing candidate (${res.status}): ${await res.text()}`);
   }

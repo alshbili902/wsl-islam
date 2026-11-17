@@ -14,6 +14,7 @@ export interface AnalyzedReleaseResult {
   summaryAr: string;
   categories: ReleaseCategoryGroup[];
   releaseNotes: string[];
+  relatedHref?: string | null;
   highlightsCount: number;
 }
 

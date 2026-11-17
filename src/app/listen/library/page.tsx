@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import { ListeningLibraryClient } from "@/components/listen/ListeningLibraryClient";
 import { syncAndLoadReciterCatalog } from "@/lib/audio/catalog";
 import { fetchVerifiedLectures } from "@/lib/api/lectures";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: "مكتبة الاستماع الشخصية — مركز الاستماع | وصل الإسلامية",
+export const metadata: Metadata = buildPageMetadata({
+  title: "مكتبة الاستماع الشخصية — مركز الاستماع",
   description:
     "قراؤك المفضلون، السور والمحاضرات المحفوظة، قوائم التشغيل المخصصة، وسجل متابعة الاستماع على جهازك دون تسجيل.",
-  alternates: { canonical: "/listen/library" },
-};
+  path: "/listen/library",
+  noIndex: true,
+});
 
 export const revalidate = 3600;
 

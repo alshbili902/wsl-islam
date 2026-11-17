@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AdhkarClient } from "@/components/adhkar/AdhkarClient";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "الأذكار والأدعية المأثورة",
   description:
     "أذكار الصباح والمساء، أذكار بعد الصلاة، أذكار النوم والاستيقاظ، وأدعية السفر والحفظ والرقية والأدعية القرآنية مع عدّاد تسبيح تفاعلي.",
-};
+  path: "/adhkar",
+});
 
 export default function AdhkarPage() {
   return (

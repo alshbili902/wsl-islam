@@ -3,12 +3,14 @@ import { Suspense } from "react";
 import { KnowledgeClient } from "@/components/knowledge/KnowledgeClient";
 import { ALLAH_NAMES } from "@/data/names-of-allah";
 import { getArticles, getScholarlyResources } from "@/lib/data/repository";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "المعرفة الإسلامية وأسماء الله الحسنى",
   description:
     "مقالات إسلامية موثقة في العقيدة والعبادات والسيرة النبوية وقصص الأنبياء ودليل المسلم الجديد، مع موسوعة أسماء الله الحسنى.",
-};
+  path: "/knowledge",
+});
 
 export default async function KnowledgePage() {
   const [{ articles }, resources] = await Promise.all([

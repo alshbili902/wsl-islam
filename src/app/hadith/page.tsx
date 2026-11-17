@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HadithLibraryClient } from "@/components/hadith/HadithLibraryClient";
 import { fetchHadithSection, getCollectionSections } from "@/lib/api/hadith";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "مكتبة الحديث الشريف",
   description:
     "تصفح صحيح البخاري وصحيح مسلم والأربعين النووية بالنصوص العربية الأصلية والكتب والأبواب والتخريج الموثوق.",
-};
+  path: "/hadith",
+});
 
 export default async function HadithPage() {
   const initialData = await fetchHadithSection("nawawi", "1");

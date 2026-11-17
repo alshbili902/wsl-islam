@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { RecitersDirectoryClient } from "@/components/listen/RecitersDirectoryClient";
 import { syncAndLoadReciterCatalog } from "@/lib/audio/catalog";
+import { buildPageMetadata } from "@/lib/seo/config";
 import type { RecitationStyleId } from "@/types/islamic";
 
-export const metadata: Metadata = {
-  title: "جميع قراء القرآن الكريم — مركز الاستماع | وصل الإسلامية",
+export const metadata: Metadata = buildPageMetadata({
+  title: "جميع قراء القرآن الكريم — مركز الاستماع",
   description:
     "دليل شامل ومحدث ديناميكياً لجميع قراء القرآن الكريم عبر مختلف الروايات وأساليب التلاوة (مرتل، مجود، معلم، ورش، قالون) مع تشغيل مباشر.",
-  alternates: { canonical: "/listen/reciters" },
-};
+  path: "/listen/reciters",
+});
 
 export const revalidate = 3600;
 

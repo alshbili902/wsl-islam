@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useWasl } from "@/components/providers/WaslProvider";
+import { CopyImageSuccessToast } from "@/components/share/CopyImageSuccessToast";
 import {
   buildCanonicalShareUrl,
   buildSocialShareLinks,
@@ -119,21 +120,73 @@ function detectShareCapabilities() {
   };
 }
 
+const COPY_TOAST_DURATION_MS = 2600;
+
 export function ShareCardModal() {
   const { sharePayload, closeShareCard, locale, resolvedTheme } = useWasl();
 
-  if (!sharePayload) return null;
+  const [copyToastVisible, setCopyToastVisible] = useState(false);
+  const [copyToastKey, setCopyToastKey] = useState(0);
+  const copyToastVisibleRef = useRef(false);
+  const copyToastTimerRef = useRef<number | null>(null);
 
-  const modalKey = `${sharePayload.kind}|${sharePayload.referenceAr}|${sharePayload.arabicText.slice(0, 48)}|${locale}`;
+  const dismissCopyToast = useCallback(() => {
+    if (copyToastTimerRef.current !== null) {
+      window.clearTimeout(copyToastTimerRef.current);
+      copyToastTimerRef.current = null;
+    }
+    copyToastVisibleRef.current = false;
+    setCopyToastVisible(false);
+  }, []);
+
+  const triggerCopyImageSuccessToast = useCallback(() => {
+    if (copyToastTimerRef.current !== null) {
+      window.clearTimeout(copyToastTimerRef.current);
+    }
+    if (!copyToastVisibleRef.current) {
+      copyToastVisibleRef.current = true;
+      setCopyToastKey((prev) => prev + 1);
+      setCopyToastVisible(true);
+    }
+    copyToastTimerRef.current = window.setTimeout(() => {
+      copyToastTimerRef.current = null;
+      copyToastVisibleRef.current = false;
+      setCopyToastVisible(false);
+    }, COPY_TOAST_DURATION_MS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyToastTimerRef.current !== null) {
+        window.clearTimeout(copyToastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const modalKey = sharePayload
+    ? `${sharePayload.kind}|${sharePayload.referenceAr}|${sharePayload.arabicText.slice(0, 48)}|${locale}`
+    : "";
 
   return (
-    <ShareCardModalInner
-      key={modalKey}
-      sharePayload={sharePayload}
-      closeShareCard={closeShareCard}
-      locale={locale}
-      resolvedTheme={resolvedTheme}
-    />
+    <>
+      {sharePayload ? (
+        <ShareCardModalInner
+          key={modalKey}
+          sharePayload={sharePayload}
+          closeShareCard={closeShareCard}
+          locale={locale}
+          resolvedTheme={resolvedTheme}
+          onImageCopiedSuccess={triggerCopyImageSuccessToast}
+        />
+      ) : null}
+
+      <CopyImageSuccessToast
+        visible={copyToastVisible}
+        instanceKey={copyToastKey}
+        locale={locale}
+        onDismiss={dismissCopyToast}
+      />
+    </>
   );
 }
 
@@ -142,6 +195,7 @@ interface ShareCardModalInnerProps {
   closeShareCard: () => void;
   locale: "ar" | "en";
   resolvedTheme: "light" | "dark" | "night";
+  onImageCopiedSuccess: () => void;
 }
 
 function ShareCardModalInner({
@@ -149,6 +203,7 @@ function ShareCardModalInner({
   closeShareCard,
   locale,
   resolvedTheme,
+  onImageCopiedSuccess,
 }: ShareCardModalInnerProps) {
   const reducedMotion = useReducedMotion();
   const architecture = useMemo(
@@ -417,13 +472,7 @@ function ShareCardModalInner({
       await navigator.clipboard.write([
         new window.ClipboardItem({ "image/png": activeSlide.blob }),
       ]);
-      setFeedback({
-        tone: "success",
-        message:
-          locale === "ar"
-            ? "تم نسخ البطاقة إلى الحافظة بنجاح"
-            : "Image copied to clipboard",
-      });
+      onImageCopiedSuccess();
     } catch {
       setFeedback({
         tone: "error",

@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { ListeningCenterClient } from "@/components/listen/ListeningCenterClient";
 import { syncAndLoadReciterCatalog } from "@/lib/audio/catalog";
 import { fetchVerifiedLectures } from "@/lib/api/lectures";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: "مركز الاستماع — وصل الإسلامية | القرآن الكريم والمحاضرات الصوتية",
+export const metadata: Metadata = buildPageMetadata({
+  title: "مركز الاستماع — القرآن الكريم والمحاضرات الصوتية",
   description:
     "مركز الاستماع الشامل في منصة وصل الإسلامية: جميع قراء القرآن الكريم والروايات المعتمدة والمحاضرات والدروس الإسلامية الموثقة في مشغّل صوتي مستمر.",
-  alternates: { canonical: "/listen" },
-};
+  path: "/listen",
+});
 
 export const revalidate = 3600;
 

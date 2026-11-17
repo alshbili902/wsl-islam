@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { UpdatesHistoryClient } from "@/components/releases/UpdatesHistoryClient";
 import { fetchPublishedReleases } from "@/lib/releases/store";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: "سجل التحديثات والإصدارات — وصل الإسلامية | Platform Updates",
+export const metadata: Metadata = buildPageMetadata({
+  title: "سجل التحديثات والإصدارات",
   description:
     "السجل الكامل للتحديثات والميزات الجديدة والتحسينات المنشورة في منصة وصل الإسلامية بعد التحقق من نجاح نشر الإنتاج.",
-  alternates: { canonical: "/updates" },
-};
+  path: "/updates",
+});
 
 export const dynamic = "force-dynamic";
 

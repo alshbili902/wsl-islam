@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { TafsirClient } from "@/components/tafsir/TafsirClient";
 import { fetchTafsirForVerse } from "@/lib/api/tafsir";
+import { buildPageMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: "موسوعة التفسير والتدبر | Tafsir & Reflection Encyclopedia",
+export const metadata: Metadata = buildPageMetadata({
+  title: "موسوعة التفسير والتدبر",
   description:
     "استكشف تفسير آيات القرآن الكريم من ابن كثير والسعدي والطبري والقرطبي والبغوي والميسر، مع معاني الكلمات والإعراب وأسباب النزول الموثقة.",
-};
+  path: "/tafsir",
+});
 
 export default async function TafsirPage({
   searchParams,
