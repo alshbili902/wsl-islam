@@ -29,6 +29,7 @@ export interface Dictionary {
     radio: string;
     ramadan: string;
     zakat: string;
+    charity: string;
     quiz: string;
     calendar: string;
     notifications: string;
@@ -104,6 +105,7 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       radio: "الإذاعات الإسلامية",
       ramadan: "رمضان والختمة",
       zakat: "الزكاة والصدقات",
+      charity: "الصدقة والتبرع",
       quiz: "المسابقة الإسلامية",
       calendar: "التقويم الهجري",
       notifications: "التنبيهات والتذكيرات",
@@ -179,6 +181,7 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       radio: "Islamic Radio",
       ramadan: "Ramadan & Khatmah",
       zakat: "Zakat & Charity",
+      charity: "Charity & Donations",
       quiz: "Islamic Quiz",
       calendar: "Islamic Calendar",
       notifications: "Smart Reminders",

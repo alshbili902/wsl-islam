@@ -8,6 +8,7 @@ import {
   Bookmark,
   ChevronDown,
   Globe,
+  HandHeart,
   Menu,
   Monitor,
   Moon,
@@ -83,7 +84,11 @@ export function Header() {
     { href: "/knowledge#names-of-allah", label: t.nav.namesOfAllah },
   ];
 
-  const servicesDropdownLinks = [
+  const servicesDropdownLinks: Array<{
+    href: string;
+    label: string;
+    icon?: React.ReactNode;
+  }> = [
     { href: "/listen", label: t.nav.listen },
     { href: "/lectures", label: t.nav.lectures },
     { href: "/knowledge", label: t.nav.knowledge },
@@ -92,6 +97,11 @@ export function Header() {
     { href: "/reading-settings", label: t.nav.readingSettings },
     { href: "/ramadan", label: t.nav.ramadan },
     { href: "/zakat", label: t.nav.zakat },
+    {
+      href: "/charity",
+      label: t.nav.charity,
+      icon: <HandHeart className="h-4 w-4 text-[var(--brand-gold)] shrink-0" />,
+    },
     { href: "/quiz", label: t.nav.quiz },
     { href: "/calendar", label: t.nav.calendar },
     { href: "/resources", label: t.nav.resources },
@@ -114,6 +124,7 @@ export function Header() {
     pathname.startsWith("/reading-settings") ||
     pathname.startsWith("/ramadan") ||
     pathname.startsWith("/zakat") ||
+    pathname.startsWith("/charity") ||
     pathname.startsWith("/quiz") ||
     pathname.startsWith("/calendar") ||
     pathname.startsWith("/resources");
@@ -362,13 +373,14 @@ export function Header() {
                         key={item.href}
                         href={item.href}
                         onClick={() => setOpenDropdown(null)}
-                        className={`block rounded-xl px-3.5 py-2.5 text-sm transition-colors ${
+                        className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-sm transition-colors ${
                           pathname === item.href
                             ? "bg-[var(--brand-emerald-soft)] text-[var(--brand-emerald)] font-semibold"
                             : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
                         }`}
                       >
-                        {item.label}
+                        <span>{item.label}</span>
+                        {item.icon ?? null}
                       </Link>
                     ))}
                   </motion.div>
@@ -616,6 +628,12 @@ export function Header() {
                   active={pathname.startsWith("/zakat")}
                 />
                 <MobileLink
+                  href="/charity"
+                  label={t.nav.charity}
+                  active={pathname.startsWith("/charity")}
+                  icon={<HandHeart className="h-4 w-4 text-[var(--brand-gold)] shrink-0" />}
+                />
+                <MobileLink
                   href="/quiz"
                   label={t.nav.quiz}
                   active={pathname.startsWith("/quiz")}
@@ -677,21 +695,24 @@ function MobileLink({
   href,
   label,
   active,
+  icon,
 }: {
   href: string;
   label: string;
   active: boolean;
+  icon?: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
-      className={`rounded-xl border px-3 py-2.5 text-sm font-medium text-center transition-colors ${
+      className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium text-center transition-colors ${
         active
           ? "border-[var(--brand-emerald)] bg-[var(--brand-emerald-soft)] text-[var(--brand-emerald)] font-semibold"
           : "border-[var(--border-subtle)] bg-[var(--bg-surface-alt)]/50 text-[var(--text-primary)]"
       }`}
     >
-      {label}
+      {icon ?? null}
+      <span>{label}</span>
     </Link>
   );
 }

@@ -30,6 +30,7 @@ export function Footer() {
     { href: "/reading-settings", label: t.nav.readingSettings },
     { href: "/ramadan", label: t.nav.ramadan },
     { href: "/zakat", label: t.nav.zakat },
+    { href: "/charity", label: t.nav.charity },
     { href: "/quiz", label: t.nav.quiz },
     { href: "/calendar", label: t.nav.calendar },
     { href: "/resources", label: t.nav.resources },
